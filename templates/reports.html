@@ -1,0 +1,672 @@
+{% extends "base.html" %} {% block title %}Reports - Staff Scheduler{% endblock
+%} {% block content %}
+<style>
+  /* Existing styles... */
+
+  /* Adjust modal size */
+  .modal {
+    width: 80% !important;
+    max-height: 80% !important;
+    height: 80% !important;
+  }
+
+  .modal .modal-content {
+    height: calc(100% - 56px);
+    max-height: none;
+    overflow-y: auto;
+  }
+
+  /* Ensure charts and heatmap have sufficient height */
+  #concurrent-chart-container,
+  #employee-chart-container,
+  #partner-engagements-container,
+  #heatmap-container {
+    height: 100%;
+    min-height: 400px;
+  }
+</style>
+<h2>Generate Reports</h2>
+
+<div class="row">
+  <div class="col s12">
+    <div class="input-field" style="width: 40%">
+      <input type="text" id="date_range" required />
+      <label for="date_range" class="active">Date Range</label>
+    </div>
+    <div class="report-options">
+      <p>
+        <label>
+          <input type="checkbox" id="select-all-checkbox" />
+          <span><strong>Select All</strong></span>
+        </label>
+      </p>
+      <p>
+        <label>
+          <input type="checkbox" id="concurrent-engagements-checkbox" />
+          <span>Concurrent Engagements</span>
+        </label>
+      </p>
+      <p>
+        <label>
+          <input
+            type="checkbox"
+            id="employee-concurrent-engagements-checkbox"
+          />
+          <span>Employee Concurrent Engagements</span>
+        </label>
+      </p>
+      <p>
+        <label>
+          <input type="checkbox" id="partner-engagements-checkbox" />
+          <span>Partner Engagements</span>
+        </label>
+      </p>
+      <p>
+        <label>
+          <input type="checkbox" id="engagement-deadline-heatmap-checkbox" />
+          <span>Engagement Deadline Heatmap</span>
+        </label>
+      </p>
+    </div>
+    <button
+      class="btn waves-effect waves-light modal-trigger"
+      data-target="reports-modal"
+      onclick="generateSelectedReports()"
+    >
+      <i class="material-icons left">assessment</i>
+      Generate Selected Reports
+    </button>
+    <div class="section"></div>
+    <button
+      class="btn waves-effect waves-light"
+      onclick="downloadDatabaseToExcel()"
+    >
+      <i class="material-icons left">file_download</i>
+      Download Database as a .xlsx File
+    </button>
+  </div>
+</div>
+
+<!-- Reports Modal -->
+<div id="reports-modal" class="modal modal-fixed-footer">
+  <div class="modal-content">
+    <h4>Reports</h4>
+    <div class="row">
+      <div class="col s12">
+        <ul class="tabs">
+          <li
+            class="tab col s3"
+            id="concurrent-engagements-tab"
+            style="display: none"
+          >
+            <a href="#concurrent-engagements">Concurrent Engagements</a>
+          </li>
+          <li
+            class="tab col s3"
+            id="employee-concurrent-engagements-tab"
+            style="display: none"
+          >
+            <a href="#employee-concurrent-engagements">Employee Concurrent</a>
+          </li>
+          <li
+            class="tab col s3"
+            id="partner-engagements-tab"
+            style="display: none"
+          >
+            <a href="#partner-engagements">Partner Engagements</a>
+          </li>
+          <li
+            class="tab col s3"
+            id="engagement-deadline-heatmap-tab"
+            style="display: none"
+          >
+            <a href="#engagement-deadline-heatmap">Deadline Heatmap</a>
+          </li>
+        </ul>
+      </div>
+      <div id="concurrent-engagements" class="col s12">
+        <div id="concurrent-chart-container"></div>
+      </div>
+      <div id="employee-concurrent-engagements" class="col s12">
+        <div id="employee-chart-container"></div>
+      </div>
+      <div id="partner-engagements" class="col s12">
+        <div id="partner-engagements-container"></div>
+        <button
+          class="btn waves-effect waves-light"
+          onclick="downloadPartnerEngagementsToExcel()"
+        >
+          <i class="material-icons left">file_download</i>
+          Download Partner Engagements to Excel
+        </button>
+      </div>
+      <div id="engagement-deadline-heatmap" class="col s12">
+        <div class="section"></div>
+        <div id="heatmap-container"></div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-close waves-effect waves-green btn-flat">
+      <i class="material-icons left">close</i>
+      Close
+    </a>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/litepicker/dist/litepicker.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation"></script>
+<script>
+  let concurrentEngagementsChart = null;
+  let employeeConcurrentEngagementsChart = null;
+
+  document.addEventListener("DOMContentLoaded", function () {
+    initializeDatePicker("date_range");
+    var elems = document.querySelectorAll(".modal");
+    var instances = M.Modal.init(elems);
+    var tabs = document.querySelectorAll(".tabs");
+    var tabInstances = M.Tabs.init(tabs);
+
+    var modal = document.querySelector("#reports-modal");
+    modal.addEventListener("modal_open", resizeCharts);
+    window.addEventListener("resize", resizeCharts);
+
+    const selectAllCheckbox = document.getElementById("select-all-checkbox");
+    const reportCheckboxes = document.querySelectorAll(
+      '.report-options input[type="checkbox"]:not(#select-all-checkbox)'
+    );
+
+    selectAllCheckbox.addEventListener("change", function () {
+      reportCheckboxes.forEach((checkbox) => {
+        checkbox.checked = this.checked;
+      });
+    });
+
+    reportCheckboxes.forEach((checkbox) => {
+      checkbox.addEventListener("change", function () {
+        selectAllCheckbox.checked = Array.from(reportCheckboxes).every(
+          (cb) => cb.checked
+        );
+      });
+    });
+    const heatmapTab = document.getElementById("engagement-deadline-heatmap");
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (
+          mutation.type === "attributes" &&
+          mutation.attributeName === "style"
+        ) {
+          if (heatmapTab.style.display !== "none") {
+            // Tab is visible, render or re-render the calendar
+            if (calendarInstance) {
+              calendarInstance.render();
+              window.dispatchEvent(new Event("resize"));
+            }
+          }
+        }
+      });
+    });
+
+    observer.observe(heatmapTab, { attributes: true });
+  });
+
+  function downloadDatabaseToExcel() {
+    window.pywebview.api.download_database_to_excel().then((result) => {
+      if (result.success) {
+        M.toast({
+          html: "Database downloaded successfully!",
+          classes: "green",
+        });
+      } else {
+        M.toast({ html: "Error downloading database.", classes: "red" });
+      }
+    });
+  }
+
+  function initializeDatePicker(inputId) {
+    const dateRangeInput = document.getElementById(inputId);
+    const dateRangeLabel = dateRangeInput.nextElementSibling;
+    dateRangeLabel.classList.add("active");
+
+    new Litepicker({
+      firstDay: 0,
+      element: dateRangeInput,
+      singleMode: false,
+      format: "M/D/YYYY",
+      setup: (picker) => {
+        picker.on("selected", (date1, date2) => {
+          dateRangeInput.value = `${formatDate(date1)} - ${formatDate(date2)}`;
+        });
+      },
+    });
+
+    dateRangeInput.addEventListener("focus", (e) => {
+      e.preventDefault();
+      dateRangeLabel.classList.add("active");
+    });
+
+    dateRangeInput.addEventListener("blur", (e) => {
+      e.preventDefault();
+      dateRangeLabel.classList.add("active");
+    });
+  }
+
+  function formatDate(date) {
+    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+  }
+
+  function generateSelectedReports() {
+    const dateRange = document.getElementById("date_range").value.split(" - ");
+    if (dateRange.length !== 2) {
+      M.toast({ html: "Please select a valid date range.", classes: "red" });
+      return;
+    }
+
+    const startDate = dateRange[0];
+    const endDate = dateRange[1];
+
+    const concurrentEngagementsChecked = document.getElementById(
+      "concurrent-engagements-checkbox"
+    ).checked;
+    const employeeConcurrentEngagementsChecked = document.getElementById(
+      "employee-concurrent-engagements-checkbox"
+    ).checked;
+    const partnerEngagementsChecked = document.getElementById(
+      "partner-engagements-checkbox"
+    ).checked;
+    const engagementDeadlineHeatmapChecked = document.getElementById(
+      "engagement-deadline-heatmap-checkbox"
+    ).checked;
+
+    const reportTabs = [
+      { id: "concurrent-engagements", checked: concurrentEngagementsChecked },
+      {
+        id: "employee-concurrent-engagements",
+        checked: employeeConcurrentEngagementsChecked,
+      },
+      { id: "partner-engagements", checked: partnerEngagementsChecked },
+      {
+        id: "engagement-deadline-heatmap",
+        checked: engagementDeadlineHeatmapChecked,
+      },
+    ];
+
+    // Hide all tabs first
+    reportTabs.forEach((tab) => {
+      document.getElementById(`${tab.id}-tab`).style.display = "none";
+    });
+
+    // Show only the selected tabs and generate reports
+    reportTabs.forEach((tab) => {
+      if (tab.checked) {
+        document.getElementById(`${tab.id}-tab`).style.display = "block";
+        if (tab.id === "concurrent-engagements") {
+          generateConcurrentEngagementsReport(startDate, endDate);
+        } else if (tab.id === "employee-concurrent-engagements") {
+          generateEmployeeConcurrentEngagementsReport(startDate, endDate);
+        } else if (tab.id === "partner-engagements") {
+          generatePartnerEngagementsReport(startDate, endDate);
+        } else if (tab.id === "engagement-deadline-heatmap") {
+          generateEngagementDeadlineHeatmap(startDate, endDate);
+        }
+      }
+    });
+
+    // Reinitialize tabs
+    var tabs = document.querySelectorAll(".tabs");
+    var tabInstances = M.Tabs.init(tabs);
+
+    // Select the first visible tab
+    setTimeout(() => {
+      const visibleTabs = document.querySelectorAll(
+        '.tab:not([style*="display: none"])'
+      );
+      if (visibleTabs.length > 0) {
+        const firstVisibleTab = visibleTabs[0].querySelector("a");
+        const tabInstance = M.Tabs.getInstance(document.querySelector(".tabs"));
+        tabInstance.select(firstVisibleTab.getAttribute("href").substring(1));
+      }
+    }, 0);
+  }
+
+  let calendarInstance = null;
+
+  function initializeCalendar(events) {
+    if (calendarInstance) {
+      calendarInstance.destroy();
+    }
+
+    calendarInstance = new FullCalendar.Calendar(
+      document.getElementById("calendar-heatmap"),
+      {
+        initialView: "dayGridMonth",
+        events: events,
+        headerToolbar: {
+          left: "prev,next today",
+          center: "title",
+          right: "dayGridMonth,dayGridWeek",
+        },
+        eventContent: function (arg) {
+          return {
+            html: `<div class="fc-event-title" style="color: black; font-weight: bold;">${arg.event.title}</div>`,
+          };
+        },
+        eventDidMount: function (info) {
+          tippy(info.el, {
+            content: info.event.extendedProps.engagements.join("<br>"),
+            allowHTML: true,
+            theme: "light-border",
+          });
+        },
+      }
+    );
+
+    calendarInstance.render();
+    window.dispatchEvent(new Event("resize"));
+  }
+
+  function generateEngagementDeadlineHeatmap(startDate, endDate) {
+    window.pywebview.api
+      .get_engagement_deadline_heatmap(startDate, endDate)
+      .then((data) => {
+        const container = document.getElementById("heatmap-container");
+        container.innerHTML =
+          '<div id="calendar-heatmap" style="height: 300px;"></div>';
+
+        const events = data.dates.map((date, index) => ({
+          title: `${data.counts[index]} deadlines`,
+          start: date,
+          display: "background",
+          backgroundColor: getHeatmapColor(
+            data.counts[index],
+            Math.max(...data.counts)
+          ),
+          extendedProps: {
+            engagements: data.engagements[index],
+          },
+        }));
+
+        // Initialize calendar but don't render yet
+        initializeCalendar(events);
+      });
+  }
+
+  function getHeatmapColor(value, max) {
+    const intensity = value / max;
+    return `rgba(255, 0, 0, ${intensity})`;
+  }
+
+  function generateConcurrentEngagementsReport(startDate, endDate) {
+    window.pywebview.api
+      .get_concurrent_engagements_by_partner(startDate, endDate)
+      .then((data) => {
+        const container = document.getElementById("concurrent-chart-container");
+        container.innerHTML =
+          '<canvas id="concurrent-engagements-chart"></canvas>';
+        const ctx = document
+          .getElementById("concurrent-engagements-chart")
+          .getContext("2d");
+
+        if (concurrentEngagementsChart) {
+          concurrentEngagementsChart.destroy();
+        }
+
+        const currentWeekIndex = getCurrentWeekIndex(data.dates);
+
+        concurrentEngagementsChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: data.dates,
+            datasets: data.datasets.map((dataset) => ({
+              label: dataset.label,
+              data: dataset.data,
+              borderColor: getRandomColor(),
+              tension: 0.1,
+              engagements: dataset.engagements,
+            })),
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Number of Concurrent Engagements",
+                },
+                ticks: {
+                  stepSize: 1,
+                  precision: 0,
+                },
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "Week Starting",
+                },
+              },
+            },
+            plugins: {
+              tooltip: {
+                callbacks: {
+                  afterBody: function (context) {
+                    const datasetIndex = context[0].datasetIndex;
+                    const index = context[0].dataIndex;
+                    return (
+                      "Engagements:\n" +
+                      data.datasets[datasetIndex].engagements[index].join("\n")
+                    );
+                  },
+                },
+              },
+              annotation: {
+                annotations: {
+                  currentWeek: {
+                    type: "line",
+                    xMin: currentWeekIndex,
+                    xMax: currentWeekIndex,
+                    borderColor: "red",
+                    borderWidth: 2,
+                  },
+                },
+              },
+            },
+          },
+        });
+        window.dispatchEvent(new Event("resize"));
+      });
+  }
+
+  function getRandomColor() {
+    const r = Math.floor(Math.random() * 255);
+    const g = Math.floor(Math.random() * 255);
+    const b = Math.floor(Math.random() * 255);
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+  function resizeCharts() {
+    if (concurrentEngagementsChart) {
+      concurrentEngagementsChart.resize();
+    }
+    if (employeeConcurrentEngagementsChart) {
+      employeeConcurrentEngagementsChart.resize();
+    }
+    if (calendarInstance) {
+      calendarInstance.updateSize();
+    }
+  }
+
+  function generateEmployeeConcurrentEngagementsReport(startDate, endDate) {
+    window.pywebview.api
+      .get_employee_concurrent_engagements(startDate, endDate)
+      .then((data) => {
+        const container = document.getElementById("employee-chart-container");
+        container.innerHTML =
+          '<canvas id="employee-concurrent-engagements-chart"></canvas>';
+        const ctx = document
+          .getElementById("employee-concurrent-engagements-chart")
+          .getContext("2d");
+
+        if (employeeConcurrentEngagementsChart) {
+          employeeConcurrentEngagementsChart.destroy();
+        }
+
+        const currentWeekIndex = getCurrentWeekIndex(data.dates);
+
+        employeeConcurrentEngagementsChart = new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: data.dates,
+            datasets: data.datasets,
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+
+            scales: {
+              y: {
+                beginAtZero: true,
+                title: {
+                  display: true,
+                  text: "Number of Concurrent Engagements",
+                },
+                ticks: {
+                  stepSize: 1,
+                  precision: 0,
+                },
+              },
+              x: {
+                title: {
+                  display: true,
+                  text: "Week Starting",
+                },
+              },
+            },
+            plugins: {
+              annotation: {
+                annotations: {
+                  currentWeek: {
+                    type: "line",
+                    xMin: currentWeekIndex,
+                    xMax: currentWeekIndex,
+                    borderColor: "red",
+                    borderWidth: 2,
+                  },
+                },
+              },
+            },
+          },
+        });
+        window.dispatchEvent(new Event("resize"));
+      });
+  }
+
+  function generatePartnerEngagementsReport(startDate, endDate) {
+    window.pywebview.api
+      .get_partner_engagements(startDate, endDate)
+      .then((data) => {
+        const container = document.getElementById(
+          "partner-engagements-container"
+        );
+        container.innerHTML = `
+<table class="striped highlight">
+  <thead>
+    <tr>
+      <th>Partner</th>
+      <th>Amount</th>
+      <th>Engagements</th>
+    </tr>
+  </thead>
+  <tbody>
+    ${data
+      .map(
+        (partner) => `
+      <tr>
+        <td>${partner.name}</td>
+        <td>${partner.engagements.length}</td>
+        <td>
+          <ul class="collapsible">
+            <li>
+              <div class="collapsible-header"><i class="material-icons">expand_more</i>View Engagements</div>
+              <div class="collapsible-body">
+                <ul class="collection">
+                  ${partner.engagements
+                    .map(
+                      (engagement) => `
+                    <li class="collection-item">
+                     <h5 style="font-weight: bold;">${engagement.title} - ${
+                        engagement.fiscal_year || "N/A"
+                      } (${engagement.type})</h5>
+                      <div>${engagement.earliest_assignment} - ${
+                        engagement.latest_assignment
+                      }</div>
+                      <div>Deadline: ${engagement.deadline || "N/A"}</div>
+                      <div>Assigned Employees: ${
+                        engagement.assigned_employees.join(", ") || "None"
+                      }</div>
+                    </li>
+                  `
+                    )
+                    .join("")}
+                </ul>
+              </div>
+            </li>
+          </ul>
+        </td>
+      </tr>
+    `
+      )
+      .join("")}
+  </tbody>
+</table>
+    `;
+
+        // Initialize collapsible elements
+        var elems = document.querySelectorAll(".collapsible");
+        M.Collapsible.init(elems);
+      });
+  }
+
+  function downloadPartnerEngagementsToExcel() {
+    const dateRange = document.getElementById("date_range").value.split(" - ");
+    if (dateRange.length !== 2) {
+      M.toast({ html: "Please select a valid date range.", classes: "red" });
+      return;
+    }
+
+    const startDate = dateRange[0];
+    const endDate = dateRange[1];
+
+    window.pywebview.api
+      .download_partner_engagements_to_excel(startDate, endDate)
+      .then((result) => {
+        if (result.success) {
+          M.toast({
+            html: "Partner Engagements report downloaded successfully!",
+            classes: "green",
+          });
+        } else {
+          M.toast({
+            html: "Error downloading Partner Engagements report.",
+            classes: "red",
+          });
+        }
+      });
+  }
+
+  function getCurrentWeekIndex(dates) {
+    const currentDate = new Date();
+    for (let i = 0; i < dates.length; i++) {
+      const weekStart = new Date(dates[i]);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 7);
+      if (currentDate >= weekStart && currentDate < weekEnd) {
+        return i;
+      }
+    }
+    return -1;
+  }
+</script>
+{% endblock %}

@@ -1,0 +1,2647 @@
+{% extends "base.html" %} {% block title %}Schedule - Employee Scheduler{%
+endblock %} {% block content %}
+<style>
+  .vis-time-axis .vis-grid.vis-minor {
+    border-width: 1px;
+    border-color: #e0e0e0;
+  }
+  .vis-time-axis .vis-grid.vis-saturday,
+  .vis-time-axis .vis-grid.vis-sunday {
+    background-color: #f0f0f0;
+  }
+  .vis-time-axis .vis-grid.vis-monday {
+    border-width: 3px;
+    border-color: #a0a0a0;
+  }
+  .vis-time-axis .vis-text.vis-major {
+    font-weight: bold;
+  }
+  .context-menu {
+    background-color: white;
+    border: 1px solid #ccc;
+    box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+  }
+
+  .context-menu ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .context-menu li {
+    padding: 0;
+  }
+
+  .context-menu-item {
+    display: block;
+    padding: 8px 12px;
+    color: #333;
+    text-decoration: none;
+  }
+
+  .context-menu-item:hover {
+    background-color: #f0f0f0;
+  }
+
+  .vis-item.time-off-item {
+    background-color: orange;
+    border-color: darkorange;
+    color: white;
+  }
+
+  .autocomplete-content {
+    position: fixed !important;
+    top: auto !important;
+    left: auto !important;
+    overflow-y: auto;
+    z-index: 9999;
+    width: auto !important;
+  }
+  .modal {
+    overflow: visible !important;
+  }
+  .birds-eye-view .vis-item {
+    height: 5px !important;
+    margin: 0 !important;
+    border-width: 1px !important;
+  }
+
+  .birds-eye-view .vis-item .vis-item-content {
+    padding: 0 !important;
+    font-size: 8px !important;
+    line-height: 10px !important;
+  }
+  .birds-eye-view .vis-item.vis-range {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+  }
+  .draggable-modal {
+    position: fixed;
+    z-index: 1000;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    display: none;
+  }
+
+  .draggable-modal .modal-header {
+    cursor: move;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 10px;
+  }
+  .highlighted-assignment {
+    background-color: rgba(255, 64, 129, 0.2) !important;
+    z-index: 1;
+  }
+  .engagement-main-info {
+    background-color: #fffae0;
+
+    padding: 3px;
+    border-radius: 4px;
+  }
+  .engagement-partner {
+    background-color: #aabaff;
+    padding: 3px;
+    border-radius: 4px;
+  }
+  .engagement-deadline {
+    background-color: #ffa9ea;
+    padding: 3px;
+    border-radius: 4px;
+  }
+
+  .engagement-main-info,
+  .engagement-partner,
+  .engagement-deadline {
+    margin-right: 5px;
+  }
+  .active-employee,
+  .inactive-employee {
+    padding: 8px;
+    margin: 4px 0;
+    border-radius: 4px;
+  }
+
+  .active-employee {
+    background-color: #e8f5e9;
+    border-left: 4px solid #4caf50;
+  }
+
+  .inactive-employee {
+    background-color: #ffebee;
+    border-left: 4px solid #f44336;
+  }
+
+  .vis-item.vis-range {
+    font-size: 14px;
+  }
+
+  .hire-date {
+    font-size: 12px;
+    color: #666;
+  }
+
+  .employee-status {
+    font-size: 12px;
+    font-weight: bold;
+    color: #555;
+    margin-top: 4px;
+  }
+
+  .employee-divider {
+    background-color: #f5f5f5;
+    padding: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+    margin: 8px 0;
+  }
+  .employee-name {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+  .filter-container {
+    display: flex;
+    align-items: flex-start;
+    background-color: #f5f5f5;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+  }
+
+  .filter-container .input-field {
+    margin-bottom: 10px;
+  }
+
+  .filter-container .switch {
+    margin-left: 20px;
+    margin-top: 10px;
+  }
+</style>
+<div class="section">
+  <button
+    class="waves-effect waves-light btn blue darken-2"
+    id="newEngagementBtn"
+  >
+    <i class="material-icons left">add</i>
+    New Engagement
+  </button>
+  <button
+    class="waves-effect waves-light btn blue darken-2"
+    id="bulkAddAssignmentBtn"
+  >
+    <i class="material-icons left">group_add</i>
+    Bulk Add Assignment
+  </button>
+  <button id="birdsEyeViewBtn" class="waves-effect waves-light grey btn">
+    <i class="material-icons left">visibility</i>
+    Toggle Birds Eye View
+  </button>
+  <button class="waves-effect waves-light btn orange" id="compareScheduleBtn">
+    <i class="material-icons left">compare</i>
+    Compare Schedule
+  </button>
+  <button class="waves-effect waves-light btn green" id="saveScheduleBtn">
+    <i class="material-icons left">save</i>
+    Save Schedule
+  </button>
+</div>
+
+<div class="row">
+  <div class="col s6">
+    <div
+      class="input-field"
+      style="width: 40%; display: inline-block; margin-right: 10px"
+    >
+      <input type="text" id="employeeFilter" class="autocomplete" />
+      <label for="employeeFilter">Filter Staff</label>
+    </div>
+
+    <div
+      class="input-field"
+      style="width: 40%; display: inline-block; margin-right: 10px"
+    >
+      <input type="text" id="engagementFilter" class="autocomplete" />
+      <label for="engagementFilter">Filter by Engagement</label>
+    </div>
+  </div>
+  <div class="col s6" style="margin-top: 1rem">
+    <div class="switch" style="display: inline-block; vertical-align: bottom">
+      <label>
+        Hide Inactive
+        <input type="checkbox" id="showInactiveEmployees" />
+        <span class="lever"></span>
+        Show Inactive
+      </label>
+    </div>
+  </div>
+</div>
+
+<div id="newEngagementModal" class="draggable-modal">
+  <div class="modal-header">
+    <h4>Add New Engagement</h4>
+  </div>
+  <div class="modal-content">
+    <form id="add-engagement-form">
+      <div class="input-field">
+        <input id="title" type="text" required />
+        <label for="title">Title</label>
+      </div>
+      <div class="input-field">
+        <input id="fiscal_year" type="text" required />
+        <label for="fiscal_year">Fiscal Year</label>
+      </div>
+      <div class="input-field">
+        <input id="engagement_type" type="text" required />
+        <label for="engagement_type">Engagement Type</label>
+      </div>
+      <div class="input-field">
+        <select id="partner_id" required>
+          <option value="" disabled selected>Choose a partner</option>
+        </select>
+        <label>Partner</label>
+      </div>
+      <div class="input-field">
+        <input
+          id="deadline"
+          type="text"
+          class="datepicker deadline-input"
+          required
+        />
+        <label for="deadline">Deadline</label>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button id="cancelNewEngagement" class="waves-effect waves-green btn-flat">
+      Cancel
+    </button>
+    <button id="createNewEngagement" class="waves-effect waves-green btn">
+      Create
+    </button>
+  </div>
+</div>
+
+<div id="bulkAddAssignmentModal" class="draggable-modal">
+  <div class="modal-header">
+    <h4>Bulk Add Assignments</h4>
+  </div>
+  <div class="modal-content">
+    <form id="bulk-add-assignment-form">
+      <div class="input-field">
+        <input
+          type="text"
+          id="engagement_select"
+          class="autocomplete"
+          required
+        />
+        <label for="engagement_select">Select Engagement</label>
+      </div>
+      <div class="input-field">
+        <input id="bulk_date_range" type="text" required />
+        <label for="bulk_date_range" class="active">Date Range</label>
+      </div>
+      <div id="employee-list" style="max-height: 300px; overflow-y: auto">
+        <!-- Employee checkboxes will be dynamically added here -->
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button
+      id="cancelBulkAddAssignment"
+      class="waves-effect waves-green btn-flat"
+    >
+      Cancel
+    </button>
+    <button id="saveBulkAddAssignment" class="waves-effect waves-green btn">
+      Save
+    </button>
+  </div>
+</div>
+
+<div id="timeline"></div>
+<div
+  id="hoverTooltip"
+  style="
+    position: absolute;
+    display: none;
+    background-color: white;
+    border: 1px solid #ccc;
+    padding: 5px;
+    z-index: 1000;
+  "
+></div>
+{% endblock %} {% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+<script>
+  let timeline;
+  let allItems;
+  let allGroups;
+  let employeeData = {};
+  let currentContextMenu = null;
+
+  function waitForPywebview(callback) {
+    if (window.pywebview && window.pywebview.api) {
+      callback();
+    } else {
+      setTimeout(() => waitForPywebview(callback), 100);
+    }
+  }
+
+  function centerModal(modal) {
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const modalWidth = modal.offsetWidth;
+    const modalHeight = modal.offsetHeight;
+
+    const left = (windowWidth - modalWidth) / 2;
+    const top = (windowHeight - modalHeight) / 2;
+
+    modal.style.left = `${left}px`;
+    modal.style.top = `${top}px`;
+  }
+
+  function getTimeOff() {
+    return pywebview.api.get_all_time_off(showInactiveEmployees);
+  }
+
+  let showInactiveEmployees = false;
+
+  document
+    .getElementById("showInactiveEmployees")
+    .addEventListener("change", function () {
+      showInactiveEmployees = this.checked;
+      refreshTimeline();
+    });
+  function initializeSchedule() {
+    updateNoAssignmentsList();
+    pywebview.api
+      .get_employees(showInactiveEmployees)
+      .then((employees) => {
+        allGroups = employees.map((employee) => ({
+          id: employee.id,
+          content: `<div>${employee.first_name} ${employee.last_name}</div>`,
+          hireDate: new Date(employee.hire_date),
+          isActive: employee.active_status,
+        }));
+
+        // Sort allGroups by hire date
+        allGroups.sort((a, b) => {
+          if (a.isActive !== b.isActive) {
+            return a.isActive ? -1 : 1;
+          }
+          return a.hireDate - b.hireDate;
+        });
+
+        let lastActiveStatus = true;
+
+        allGroups = allGroups.map((group, index) => {
+          const adjustedHireDate = new Date(group.hireDate);
+          adjustedHireDate.setDate(adjustedHireDate.getDate() + 1);
+
+          const statusClass = group.isActive
+            ? "active-employee"
+            : "inactive-employee";
+          const statusText = group.isActive ? "Active" : "Inactive";
+
+          let divider = "";
+          if (lastActiveStatus && !group.isActive) {
+            divider = '<div class="employee-divider">Inactive Employees</div>';
+            lastActiveStatus = false;
+          }
+
+          group.content = `
+  ${divider}
+  <div class="${statusClass}">
+    <div class="employee-name">${group.content}</div>
+    <div class="hire-date">${adjustedHireDate.toLocaleDateString()}</div>
+    <div class="employee-status">${statusText}</div>
+  </div>
+`;
+
+          return {
+            ...group,
+            order: index,
+          };
+        });
+
+        // Prepare data for autocomplete
+        employeeData = allGroups.reduce((acc, employee) => {
+          acc[employee.content.split("<div>")[1].split("</div>")[0]] = null; // Materialize autocomplete format
+          return acc;
+        }, {});
+
+        // Initialize Materialize autocomplete
+        const elems = document.querySelectorAll(".autocomplete");
+        M.Autocomplete.init(elems, {
+          data: employeeData,
+          onAutocomplete: filterSchedule,
+        });
+
+        return Promise.all([
+          pywebview.api.get_assignments(showInactiveEmployees),
+          pywebview.api.get_all_time_off(showInactiveEmployees),
+        ]);
+      })
+      .then(([assignments, timeOffData]) => {
+        allItems = assignments.map((assignment) => {
+          return {
+            id: assignment.id,
+            group: assignment.employee_id,
+            content: `
+            <div class="engagement-info-container">
+              <span class="engagement-main-info">
+                  ${assignment.engagement_title} - ${
+              assignment.fiscal_year || "N/A"
+            } - ${assignment.engagement_type}
+              </span>
+              <span class="engagement-partner">
+                ${assignment.partner_initials || "N/A"}
+              </span>
+              <span class="engagement-deadline">
+                DL ${assignment.deadline || "N/A"}
+              </span>
+            </div>
+    `,
+            start: new Date(assignment.start_date + "T00:00:00"),
+            end: new Date(assignment.end_date + "T23:59:59"),
+            order: 2,
+          };
+        });
+
+        // Add current week as a background item
+        const today = new Date();
+        const startOfWeek = new Date(today);
+        startOfWeek.setDate(today.getDate() - ((today.getDay() + 6) % 7)); // Set to previous Monday
+        startOfWeek.setHours(0, 0, 0, 0);
+
+        const endOfWeek = new Date(startOfWeek);
+        endOfWeek.setDate(startOfWeek.getDate() + 6);
+        endOfWeek.setHours(23, 59, 59, 999);
+
+        allItems.push({
+          id: "current-week",
+          start: startOfWeek,
+          end: endOfWeek,
+          type: "background",
+          className: "current-day-overlay",
+        });
+
+        timeOffData.forEach((item) => {
+          allItems.push({
+            id: `timeoff_${item.id}`,
+            group: item.employee_id,
+            content: `${item.description}`,
+            start: new Date(item.start_date + "T00:00:00"),
+            end: new Date(item.end_date + "T23:59:59"),
+            className: "time-off-item",
+            order: 1, // This will ensure time off items are at the top
+          });
+        });
+
+        const container = document.getElementById("timeline");
+        const options = {
+          height: "750px",
+          verticalScroll: true,
+          order: function (a, b) {
+            return a.order - b.order;
+          },
+          tooltip: {
+            followMouse: true,
+            overflowMethod: "cap",
+          },
+
+          editable: true,
+          orientation: {
+            axis: "top",
+            item: "top",
+          },
+          margin: {
+            item: {
+              vertical: 10,
+            },
+          },
+          timeAxis: { scale: "day", step: 1 },
+          format: {
+            minorLabels: function (date, scale, step) {
+              switch (scale) {
+                case "day":
+                  return moment(date).format("D");
+                case "week":
+                  const weekStart = moment(date).startOf("week");
+                  const weekEnd = moment(date).endOf("week");
+                  return `${weekStart.format("MMM D")} - ${weekEnd.format(
+                    "D"
+                  )}`;
+                case "month":
+                  return moment(date).format("MMM");
+                default:
+                  return "";
+              }
+            },
+
+            majorLabels: function (date, scale, step) {
+              switch (scale) {
+                case "day":
+                case "week":
+                  return moment(date).format("MMMM YYYY");
+                case "month":
+                  return moment(date).format("YYYY");
+                default:
+                  return "";
+              }
+            },
+          },
+
+          zoomMin: 1000 * 60 * 60 * 24,
+          tooltipOnItemUpdateTime: {
+            template: function (item, element) {
+              const formatDate = (date) => {
+                return `${
+                  date.getMonth() + 1
+                }/${date.getDate()}/${date.getFullYear()}`;
+              };
+              const start = formatDate(item.start);
+              let end = new Date(item.end.getTime() - 1000);
+              end.setHours(23, 59, 59, 999);
+              const endFormatted = formatDate(end);
+              return `<div>${start} - ${endFormatted}</div>`;
+            },
+          },
+
+          onAdd: function (item, callback) {
+            console.log("onAdd event triggered:", item);
+
+            const props = {
+              time: item.start,
+              event: { pageX: 0, pageY: 0 }, // You might need to adjust these values
+              group: item.group,
+            };
+
+            openAddAssignmentModal(props);
+
+            // Don't call the callback to prevent the default add behavior
+          },
+
+          onMove: function (item, callback) {
+            console.log("onMove event triggered:", item);
+            if (isSameDay(item.start, item.end)) {
+              // If start and end are on same day, extend end date by one day
+              item.end = new Date(item.end.getTime() + 24 * 60 * 60 * 1000);
+            }
+            adjustItemDates(item);
+
+            // Handle employee reassignment
+            if (item.id.toString().startsWith("timeoff_")) {
+              updateTimeOff(
+                item.id.split("_")[1],
+                item.start,
+                item.end,
+                item.group
+              );
+            } else {
+              // Update assignment with new employee ID (group) and dates
+              updateAssignment(item.id, item.start, item.end, item.group);
+            }
+            callback(item);
+          },
+
+          onUpdate: function (item, callback) {
+            console.log("onUpdate event triggered:", item);
+            adjustItemDates(item);
+            if (item.id.toString().startsWith("timeoff_")) {
+              updateTimeOff(item.id.split("_")[1], item.start, item.end);
+            } else {
+              updateAssignment(item.id, item.start, item.end);
+            }
+            callback(item);
+          },
+
+          onRemove: function (item, callback) {
+            const itemId = String(item.id); // Convert to string
+            if (itemId.startsWith("timeoff_")) {
+              const timeOffId = itemId.split("_")[1];
+              deleteTimeOff(timeOffId);
+            } else {
+              deleteAssignment(itemId);
+            }
+            callback(item);
+          },
+
+          snap: function (date, scale, step) {
+            const snapDate = new Date(date);
+            snapDate.setHours(0, 0, 0, 0);
+            return snapDate;
+          },
+        };
+
+        timeline = new vis.Timeline(container, allItems, allGroups, options);
+        // Set the visible time window
+
+        // Set the visible time window with a slight delay
+        setTimeout(() => {
+          const today = new Date();
+          const oneWeekAgo = new Date(
+            today.getTime() - 7 * 24 * 60 * 60 * 1000
+          );
+          const oneWeekLater = new Date(
+            today.getTime() + 7 * 24 * 60 * 60 * 1000
+          );
+
+          timeline.setWindow(oneWeekAgo, oneWeekLater, {
+            animation: {
+              duration: 1000,
+              easingFunction: "easeInOutQuad",
+            },
+          });
+        }, 100);
+        timeline.on("itemover", function (properties) {
+          const item = timeline.itemsData.get(properties.item);
+          if (item) {
+            const tooltip = document.getElementById("hoverTooltip");
+            tooltip.innerHTML = item.content;
+            tooltip.style.display = "block";
+            tooltip.style.left = properties.event.pageX + 10 + "px";
+            tooltip.style.top = properties.event.pageY + 10 + "px";
+          }
+        });
+        timeline.on("doubleClick", function (properties) {
+          if (properties.item) {
+            openAssignmentModal(properties.item);
+          }
+        });
+
+        timeline.on("itemout", function (properties) {
+          const tooltip = document.getElementById("hoverTooltip");
+          tooltip.style.display = "none";
+        });
+
+        timeline.on("rangechange", function (properties) {
+          const msPerDay = 24 * 60 * 60 * 1000;
+          const daysVisible = (properties.end - properties.start) / msPerDay;
+
+          let newScale, newStep;
+          if (daysVisible > 180) {
+            newScale = "month";
+            newStep = 1;
+          } else if (daysVisible > 60) {
+            newScale = "week";
+            newStep = 1;
+          } else {
+            newScale = "day";
+            newStep = 1;
+          }
+
+          if (newScale !== timeline.timeAxis.scale) {
+            timeline.setOptions({
+              timeAxis: { scale: newScale, step: newStep },
+            });
+          }
+        });
+
+        timeline.on("contextmenu", function (props) {
+          showContextMenu(props);
+          props.event.preventDefault();
+        });
+
+        timeline.on("select", function (properties) {
+          if (properties.items.length > 0) {
+            const selectedItem = timeline.itemsData.get(properties.items[0]);
+            const selectedEngagement = selectedItem.content;
+
+            allItems.forEach((item) => {
+              if (item.content === selectedEngagement) {
+                timeline.itemsData.update({
+                  id: item.id,
+                  className: (item.className || "") + " highlighted-assignment",
+                });
+              } else {
+                // Preserve the "time-off-item" class if it exists
+                const updatedClassName =
+                  item.className && item.className.includes("time-off-item")
+                    ? "time-off-item"
+                    : "";
+                timeline.itemsData.update({
+                  id: item.id,
+                  className: updatedClassName,
+                });
+              }
+            });
+          } else {
+            // No items selected, remove all highlights but keep "time-off-item" class
+            allItems.forEach((item) => {
+              const updatedClassName =
+                item.className && item.className.includes("time-off-item")
+                  ? "time-off-item"
+                  : "";
+              timeline.itemsData.update({
+                id: item.id,
+                className: updatedClassName,
+              });
+            });
+          }
+
+          timeline.redraw();
+        });
+
+        initializeEngagementAutocomplete();
+
+        document
+          .getElementById("engagementFilter")
+          .addEventListener("input", filterSchedule);
+        document
+          .getElementById("engagementFilter")
+          .addEventListener("input", filterSchedule);
+
+        document
+          .getElementById("employeeFilter")
+          .addEventListener("input", filterSchedule);
+        document
+          .getElementById("employeeFilter")
+          .addEventListener("change", filterSchedule);
+      })
+      .catch((error) => console.error("Error:", error));
+  }
+  function isSameDay(date1, date2) {
+    return (
+      date1.getFullYear() === date2.getFullYear() &&
+      date1.getMonth() === date2.getMonth() &&
+      date1.getDate() === date2.getDate()
+    );
+  }
+
+  function openAssignmentModal(itemId) {
+    // Remove any existing modal
+    const existingModal = document.getElementById("editAssignmentModal");
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    const item = timeline.itemsData.get(itemId);
+    if (!item) return;
+
+    // Create modal HTML with tabs
+    const modalHTML = `
+    <div id="editAssignmentModal" class="draggable-modal">
+      <div class="modal-header">
+        <h4>Edit Assignment/Engagement</h4>
+      </div>
+      <div class="modal-content">
+        <ul class="tabs">
+          <li class="tab"><a href="#assignmentTab">Assignment</a></li>
+          <li class="tab"><a href="#engagementTab">Engagement</a></li>
+        </ul>
+        
+        <div id="assignmentTab">
+          <div class="input-field">
+            <input type="text" id="editEmployee" readonly>
+            <label for="editEmployee" class="active">Employee</label>
+          </div>
+          <div class="input-field">
+            <input type="text" id="editDateRange" class="datepicker">
+            <label for="editDateRange" class="active">Date Range</label>
+          </div>
+        </div>
+        
+    <div id="engagementTab">
+          <div class="input-field">
+            <input type="text" id="editEngagementTitle">
+            <label for="editEngagementTitle">Engagement Name</label>
+          </div>
+          <div class="input-field">
+            <input type="text" id="editFiscalYear">
+            <label for="editFiscalYear">Fiscal Year</label>
+          </div>
+          <div class="input-field">
+            <input type="text" id="editDeadline" class="datepicker">
+            <label for="editDeadline">Deadline</label>
+          </div>
+          <div class="input-field">
+            <select id="editPartner">
+              <option value="" disabled selected>Choose a partner</option>
+            </select>
+            <label>Partner</label>
+          </div>
+          <div class="input-field">
+            <input type="text" id="editEngagementType">
+            <label for="editEngagementType">Engagement Type</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelEditAssignment" class="waves-effect waves-green btn-flat">Cancel</button>
+        <button id="saveEditAssignment" class="waves-effect waves-green btn">Save Changes</button>
+      </div>
+    </div>
+  `;
+    // Add modal to the DOM and initialize tabs
+    document.body.insertAdjacentHTML("beforeend", modalHTML);
+    const modal = document.getElementById("editAssignmentModal");
+    modal.style.display = "block";
+    centerModal(modal);
+    makeDraggable(modal);
+
+    // Initialize Materialize tabs
+    M.Tabs.init(modal.querySelector(".tabs"));
+
+    // Set the employee name
+    const employeeGroup = allGroups.find((group) => group.id === item.group);
+    const employeeName = employeeGroup
+      ? employeeGroup.content.split("<div>")[1].split("</div>")[0]
+      : "Unknown Employee";
+    document.getElementById("editEmployee").value = employeeName;
+
+    document.getElementById("editDateRange").value = `${formatDate(
+      item.start
+    )} - ${formatDate(item.end)}`;
+
+    // Extract engagement details from item.content
+    const contentElement = document.createElement("div");
+    contentElement.innerHTML = item.content;
+
+    const engagementMainInfo = contentElement
+      .querySelector(".engagement-main-info")
+      .textContent.split(" - ");
+    const engagementTitle = engagementMainInfo[0].trim();
+    const fiscalYear = engagementMainInfo[1].trim();
+    const engagementType = engagementMainInfo[2].trim();
+
+    document.getElementById("editEngagementTitle").value = engagementTitle;
+    document.getElementById("editEngagementType").value = engagementType;
+    document.getElementById("editFiscalYear").value = fiscalYear;
+
+    // Populate partner and deadline
+    const partnerInitials = contentElement
+      .querySelector(".engagement-partner")
+      .textContent.trim();
+    const deadline = contentElement
+      .querySelector(".engagement-deadline")
+      .textContent.replace("DL", "")
+      .trim();
+
+    // Load partners and set the selected partner
+    loadPartners().then((partners) => {
+      const partnerSelect = document.getElementById("editPartner");
+      partnerSelect.innerHTML =
+        '<option value="" disabled>Choose a partner</option>';
+
+      partners.forEach((partner) => {
+        const option = document.createElement("option");
+        option.value = partner.id;
+        option.textContent = `${partner.first_name} ${partner.last_name}`;
+        partnerSelect.appendChild(option);
+      });
+
+      const matchingPartner = partners.find(
+        (partner) => partner.initials === partnerInitials
+      );
+      if (matchingPartner) {
+        partnerSelect.value = matchingPartner.id;
+      }
+
+      M.FormSelect.init(partnerSelect);
+    });
+
+    document.getElementById("editDeadline").value = deadline;
+
+    // Initialize Materialize components
+    M.updateTextFields();
+    new Litepicker({
+      firstDay: 0,
+      element: document.getElementById("editDateRange"),
+      singleMode: false,
+      format: "MM/DD/YYYY",
+      setup: (picker) => {
+        picker.setDateRange(item.start, item.end);
+      },
+    });
+
+    // Initialize Litepicker for deadline
+    new Litepicker({
+      firstDay: 0,
+      element: document.getElementById("editDeadline"),
+      singleMode: true,
+      format: "MM/DD/YYYY",
+    });
+    const dateRangeInput = document.getElementById("editDateRange");
+    const dateRangeLabel = dateRangeInput.nextElementSibling;
+    dateRangeInput.value = `${formatDate(item.start)} - ${formatDate(
+      item.end
+    )}`;
+    dateRangeLabel.classList.add("active");
+
+    // Add event listeners for save and cancel buttons
+    document
+      .getElementById("saveEditAssignment")
+      .addEventListener("click", () => saveEditAssignment(itemId));
+    document
+      .getElementById("cancelEditAssignment")
+      .addEventListener("click", () => (modal.style.display = "none"));
+  }
+
+  function initializeEngagementAutocomplete() {
+    pywebview.api.get_engagements().then((engagements) => {
+      const engagementData = engagements.reduce((acc, engagement) => {
+        acc[
+          `${engagement.title} - ${engagement.reporting_period || "N/A"} (${
+            engagement.engagement_type
+          })`
+        ] = null;
+        return acc;
+      }, {});
+
+      const engagementElem = document.querySelector("#engagementFilter");
+      M.Autocomplete.init(engagementElem, {
+        data: engagementData,
+        onAutocomplete: filterSchedule,
+      });
+    });
+  }
+
+  function updateTimeOff(id, start, end) {
+    console.log("Updating time off:", id, start, end);
+
+    // Adjust the end date to be the last moment of the previous day
+    let adjustedEnd = new Date(end);
+    adjustedEnd.setDate(adjustedEnd.getDate() - 1);
+    adjustedEnd.setHours(23, 59, 59, 999);
+
+    const data = {
+      start_date: start.toISOString().split("T")[0],
+      end_date: adjustedEnd.toISOString().split("T")[0],
+    };
+
+    pywebview.api
+      .update_time_off(id, data)
+      .then((response) => {
+        console.log("Time off updated successfully:", response);
+      })
+      .catch((error) => {
+        console.error("Error updating time off:", error);
+      });
+  }
+
+  function deleteTimeOff(id) {
+    console.log("Deleting time off:", id);
+    pywebview.api
+      .delete_time_off(id)
+      .then((response) => {
+        console.log("Time off deleted successfully:", response);
+        allItems = allItems.filter((item) => item.id !== `timeoff_${id}`);
+        timeline.setData({ items: allItems, groups: allGroups });
+        M.toast({
+          html: "Time Off / CPE deleted successfully!",
+          classes: "green",
+        });
+      })
+      .catch((error) => {
+        console.error("Error deleting time off:", error);
+        M.toast({
+          html: "Failed to delete Time Off / CPE.",
+          classes: "red",
+        });
+      });
+  }
+
+  function adjustItemDates(item) {
+    // Adjust end date to 11:59:59 PM of the previous day
+    item.end = new Date(item.end.getTime() - 1000);
+    item.end.setHours(23, 59, 59, 999);
+  }
+
+  function updateAssignment(id, start, end, newEmployeeId) {
+    console.log("Updating assignment:", id, start, end, newEmployeeId);
+
+    let adjustedEnd = new Date(end);
+    adjustedEnd.setDate(adjustedEnd.getDate() - 1);
+    adjustedEnd.setHours(23, 59, 59, 999);
+
+    pywebview.api
+      .update_assignment(
+        id,
+        start.toISOString().split("T")[0],
+        adjustedEnd.toISOString().split("T")[0],
+        newEmployeeId // Add employee ID to update
+      )
+      .then((response) => {
+        console.log("Assignment updated successfully:", response);
+      })
+      .catch((error) => {
+        console.error("Error updating assignment:", error);
+        M.toast({ html: "Failed to move assignment", classes: "red" });
+      });
+  }
+
+  function showContextMenu(props) {
+    if (currentContextMenu) {
+      document.body.removeChild(currentContextMenu);
+    }
+
+    const employeeGroup = allGroups.find((group) => group.id === props.group);
+    const employeeName = employeeGroup
+      ? employeeGroup.content.split("<div>")[1].split("</div>")[0]
+      : "Unknown Employee";
+
+    const contextMenu = document.createElement("div");
+    contextMenu.className = "context-menu";
+    contextMenu.innerHTML = `
+    <ul>
+      <li><a href="#!" class="context-menu-item" id="addAssignment">Add Assignment for ${employeeName}</a></li>
+      <li><a href="#!" class="context-menu-item" id="addTimeOff">Add Time Off / CPE for ${employeeName}</a></li>
+    </ul>
+  `;
+
+    contextMenu.style.position = "absolute";
+    contextMenu.style.left = props.event.pageX + "px";
+    contextMenu.style.top = props.event.pageY + "px";
+
+    document.body.appendChild(contextMenu);
+    currentContextMenu = contextMenu;
+
+    document.getElementById("addAssignment").addEventListener("click", () => {
+      openAddAssignmentModal(props);
+      document.body.removeChild(contextMenu);
+      currentContextMenu = null;
+    });
+    document.getElementById("addTimeOff").addEventListener("click", () => {
+      openAddTimeOffModal(props);
+      document.body.removeChild(contextMenu);
+      currentContextMenu = null;
+    });
+
+    document.addEventListener(
+      "click",
+      () => {
+        if (document.body.contains(contextMenu)) {
+          document.body.removeChild(contextMenu);
+          currentContextMenu = null;
+        }
+      },
+      { once: true }
+    );
+  }
+
+  function openAddTimeOffModal(props) {
+    const existingModal = document.getElementById("addTimeOffModal");
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    const startDate = props.time;
+    const formattedDate = startDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const employeeGroup = allGroups.find((group) => group.id === props.group);
+    const employeeName = employeeGroup
+      ? employeeGroup.content.split("<div>")[1].split("</div>")[0]
+      : "Unknown Employee";
+
+    const modalContent = `
+    <div id="addTimeOffModal" class="draggable-modal">
+      <div class="modal-header">
+        <h4>Add Time Off / CPE for ${employeeName}</h4>
+      </div>
+      <div class="modal-content">
+        <p>Starting Date: ${formattedDate}</p>
+        <div class="input-field">
+          <input type="text" id="timeOffDescription">
+          <label for="timeOffDescription">Description</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelTimeOff" class="waves-effect waves-green btn-flat">Cancel</button>
+        <button id="createTimeOff" class="waves-effect waves-green btn">Create Time Off / CPE</button>
+      </div>
+    </div>
+  `;
+
+    if (!document.getElementById("addTimeOffModal")) {
+      document.body.insertAdjacentHTML("beforeend", modalContent);
+    }
+
+    const modal = document.getElementById("addTimeOffModal");
+    modal.style.display = "block";
+    centerModal(modal);
+
+    document.getElementById("createTimeOff").addEventListener("click", () => {
+      const description = document.getElementById("timeOffDescription").value;
+      if (description) {
+        createTimeOff(props, description);
+        modal.style.display = "none";
+      } else {
+        alert("Please enter a description for the Time Off / CPE.");
+      }
+    });
+
+    document.getElementById("cancelTimeOff").addEventListener("click", () => {
+      modal.style.display = "none";
+    });
+
+    makeDraggable(modal);
+  }
+
+  function createTimeOff(props, description) {
+    const startDate = props.time;
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+    endDate.setHours(23, 59, 59, 999);
+
+    const employeeId = props.group;
+
+    const formatDate = (date) => {
+      return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+    };
+
+    const timeOffData = {
+      employee_id: employeeId,
+      start_date: formatDate(startDate),
+      end_date: formatDate(endDate),
+      description: description,
+      order: 2,
+    };
+
+    pywebview.api
+      .add_time_off(timeOffData)
+      .then((newTimeOff) => {
+        const newItem = {
+          id: `timeoff_${newTimeOff.id}`,
+          group: newTimeOff.employee_id,
+          content: `${newTimeOff.description}`,
+          start: new Date(newTimeOff.start_date + "T00:00:00"),
+          end: new Date(newTimeOff.end_date + "T23:59:59"),
+          className: "time-off-item",
+          order: 2,
+        };
+
+        allItems.push(newItem);
+        timeline.setData({ items: allItems, groups: allGroups });
+
+        M.toast({
+          html: "Time Off / CPE added successfully!",
+          classes: "green",
+        });
+      })
+      .catch((error) => {
+        console.error("Error adding time off:", error);
+        M.toast({
+          html: "Failed to add Time Off / CPE. Please try again.",
+          classes: "red",
+        });
+      });
+  }
+
+  function openAddAssignmentModal(props) {
+    const existingModal = document.getElementById("addAssignmentModal");
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    const startDate = props.time;
+    const formattedDate = startDate.toLocaleDateString("en-US", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+
+    const employeeGroup = allGroups.find((group) => group.id === props.group);
+    const employeeName = employeeGroup
+      ? employeeGroup.content.split("<div>")[1].split("</div>")[0]
+      : "Unknown Employee";
+
+    const modalContent = `
+    <div id="addAssignmentModal" class="draggable-modal">
+      <div class="modal-header">
+        <h4>Add Assignment for ${employeeName}</h4>
+      </div>
+      <div class="modal-content">
+        <p>Starting Date: ${formattedDate}</p>
+        <div class="input-field">
+           <input type="hidden" id="selected_engagement_id">
+          <input type="text" id="engagementSelect" class="autocomplete">
+          <label for="engagementSelect">Select Engagement</label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="cancelAssignment" class="waves-effect waves-green btn-flat">Cancel</button>
+        <button id="createAssignment" class="waves-effect waves-green btn">Create Assignment</button>
+      </div>
+    </div>
+  `;
+
+    if (!document.getElementById("addAssignmentModal")) {
+      document.body.insertAdjacentHTML("beforeend", modalContent);
+    }
+    console.log("Modal content added to the DOM.");
+
+    const modal = document.getElementById("addAssignmentModal");
+    modal.style.display = "block";
+    centerModal(modal);
+
+    const engagementInput = modal.querySelector("#engagementSelect");
+
+    let engagementsData;
+
+    pywebview.api.get_engagements().then((engagements) => {
+      engagementsData = engagements;
+      const engagementData = engagements.reduce((acc, engagement) => {
+        acc[
+          `${engagement.title} - ${engagement.reporting_period || "N/A"} (${
+            engagement.engagement_type
+          })`
+        ] = null;
+        return acc;
+      }, {});
+
+      const autocomplete = M.Autocomplete.init(engagementInput, {
+        data: engagementData,
+        minLength: 0,
+        onAutocomplete: function (selectedValue) {
+          const selectedEngagement = engagementsData.find(
+            (e) =>
+              `${e.title} - ${e.reporting_period || "N/A"} (${
+                e.engagement_type
+              })` === selectedValue
+          );
+          if (selectedEngagement) {
+            document.getElementById("selected_engagement_id").value =
+              selectedEngagement.id;
+          }
+        },
+        container: document.body,
+      });
+
+      engagementInput.addEventListener("click", function () {
+        if (this.value === "") {
+          autocomplete.open();
+        }
+      });
+
+      engagementInput.addEventListener("input", function () {
+        autocomplete.updateData(engagementData);
+      });
+    });
+    const createButton = document.getElementById("createAssignment");
+    const cancelButton = document.getElementById("cancelAssignment");
+
+    function handleCreateAssignment() {
+      const engagementId = document.getElementById(
+        "selected_engagement_id"
+      ).value;
+      if (engagementId) {
+        createAssignment(props, engagementId);
+        closeModal();
+      } else {
+        alert("Please select an engagement.");
+      }
+    }
+
+    function handleCancelAssignment() {
+      closeModal();
+    }
+
+    function closeModal() {
+      const modal = document.getElementById("addAssignmentModal");
+      const engagementSelect = document.getElementById("engagementSelect");
+      const selectedEngagementId = document.getElementById(
+        "selected_engagement_id"
+      );
+
+      modal.style.display = "none";
+      engagementSelect.value = "";
+      selectedEngagementId.value = "";
+
+      const createButton = document.getElementById("createAssignment");
+      const cancelButton = document.getElementById("cancelAssignment");
+      createButton.removeEventListener("click", handleCreateAssignment);
+      cancelButton.removeEventListener("click", handleCancelAssignment);
+
+      // Destroy the Materialize autocomplete instance
+      const autocompleteInstance = M.Autocomplete.getInstance(engagementSelect);
+      if (autocompleteInstance) {
+        autocompleteInstance.destroy();
+      }
+    }
+
+    createButton.addEventListener("click", handleCreateAssignment);
+    cancelButton.addEventListener("click", handleCancelAssignment);
+
+    makeDraggable(modal);
+  }
+
+  function createAssignment(props, selectedEngagement) {
+    const currentScrollTop = timeline.dom.centerContainer.scrollTop;
+    const currentVisibleRange = timeline.getWindow();
+
+    const startDate = props.time;
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 1);
+    endDate.setHours(23, 59, 59, 999);
+
+    const employeeId = props.group;
+    const engagementId = document.getElementById(
+      "selected_engagement_id"
+    ).value;
+
+    if (!engagementId) {
+      alert("Please select a valid engagement.");
+      return;
+    }
+
+    const formatDate = (date) => {
+      return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+    };
+
+    // Fetch the full engagement details
+    pywebview.api.get_engagement(engagementId).then((engagement) => {
+      const assignmentData = {
+        engagement_id: engagementId,
+        employee_id: employeeId,
+        start_date: formatDate(startDate),
+        end_date: formatDate(endDate),
+      };
+
+      pywebview.api.save_assignment(assignmentData).then((newAssignment) => {
+        const formattedDeadline = engagement.deadline
+          ? formatDate(new Date(engagement.deadline))
+          : "N/A";
+        const newItem = {
+          id: newAssignment.id,
+          group: newAssignment.employee_id,
+          content: `
+        <div class="engagement-info-container">
+          <span class="engagement-main-info">
+            ${engagement.title} - ${engagement.reporting_period || "N/A"} - ${
+            engagement.engagement_type
+          }
+          </span>
+          <span class="engagement-partner">
+            ${engagement.partner_initials || "N/A"}
+          </span>
+          <span class="engagement-deadline">
+            DL ${formattedDeadline}
+          </span>
+        </div>
+      `,
+          start: new Date(newAssignment.start_date + "T00:00:00"),
+          end: new Date(newAssignment.end_date + "T23:59:59"),
+          order: 2,
+        };
+
+        allItems.push(newItem);
+        timeline.setData({ items: allItems, groups: allGroups });
+
+        M.toast({
+          html: "Assignment created successfully!",
+          classes: "green",
+        });
+        document.getElementById("addAssignmentModal").style.display = "none";
+        updateNoAssignmentsList();
+      });
+    });
+  }
+
+  function filterSchedule() {
+    const employeeText = document
+      .getElementById("employeeFilter")
+      .value.toLowerCase();
+    const engagementText = document
+      .getElementById("engagementFilter")
+      .value.toLowerCase();
+    timeline.setData({ items: allItems, groups: allGroups });
+    if (!employeeText && !engagementText) {
+      return;
+    }
+
+    let filteredGroups = allGroups;
+    if (employeeText) {
+      filteredGroups = allGroups.filter((group) =>
+        group.content.toLowerCase().includes(employeeText)
+      );
+    }
+
+    let filteredItems = [];
+    const itemsData = timeline.itemsData;
+
+    if (Array.isArray(itemsData._data)) {
+      // Handle case where items are split into multiple arrays
+      itemsData._data.forEach((itemArray) => {
+        console.log("multiple array item", itemArray);
+        itemArray.forEach((item) => {
+          if (filterItem(item, engagementText, filteredGroups)) {
+            filteredItems.push(item);
+          }
+        });
+      });
+    } else {
+      // Handle case where items are in a single array
+      itemsData.forEach((item) => {
+        console.log("singlee array item", item);
+        if (filterItem(item, engagementText, filteredGroups)) {
+          filteredItems.push(item);
+        }
+      });
+    }
+
+    if (engagementText) {
+      const filteredGroupIds = new Set(filteredItems.map((item) => item.group));
+      filteredGroups = filteredGroups.filter((group) =>
+        filteredGroupIds.has(group.id)
+      );
+    }
+
+    timeline.setData({ items: filteredItems, groups: filteredGroups });
+  }
+
+  function filterItem(item, engagementText, filteredGroups) {
+    console.log("item", item);
+    if (item.className == "current-day-overlay") {
+      return true && true;
+    }
+    const matchesEngagement =
+      !engagementText || item.content.toLowerCase().includes(engagementText);
+    const matchesEmployee = filteredGroups.some(
+      (group) => group.id == item.group
+    );
+    return matchesEngagement && matchesEmployee;
+  }
+
+  function saveSchedule() {
+    pywebview.api
+      .save_schedule()
+      .then((response) => {
+        alert("Schedule saved successfully!");
+      })
+      .catch((error) => {
+        console.error("Error saving schedule:", error);
+        alert("Failed to save schedule.");
+      });
+  }
+  function deleteAssignment(id) {
+    console.log("Deleting assignment:", id);
+    pywebview.api
+      .delete_assignment(id)
+      .then((response) => {
+        console.log("Assignment deleted successfully:", response);
+        // Remove the item from allItems array
+        allItems = allItems.filter((item) => item.id !== id);
+      })
+      .catch((error) => {
+        console.error("Error deleting assignment:", error);
+        alert("Failed to delete assignment. Please try again.");
+      });
+    updateNoAssignmentsList();
+  }
+
+  function toggleBirdsEyeView() {
+    const timelineElement = document.getElementById("timeline");
+    timelineElement.classList.toggle("birds-eye-view");
+    timeline.redraw();
+  }
+
+  function openNewEngagementModal() {
+    const modal = document.getElementById("newEngagementModal");
+    modal.style.display = "block";
+
+    loadPartners().then((partners) => {
+      const partnerSelect = document.getElementById("partner_id");
+      partnerSelect.innerHTML =
+        '<option value="" disabled selected>Choose a partner</option>';
+      partners.forEach((partner) => {
+        const option = document.createElement("option");
+        option.value = partner.id;
+        option.textContent = `${partner.first_name} ${partner.last_name}`;
+        partnerSelect.appendChild(option);
+      });
+      M.FormSelect.init(partnerSelect);
+    });
+
+    const deadlinePicker = new Litepicker({
+      firstDay: 0,
+      element: document.getElementById("deadline"),
+      singleMode: true,
+      format: "MM/DD/YYYY",
+      setup: (picker) => {
+        picker.on("selected", (date) => {
+          const deadlineInput = document.getElementById("deadline");
+          deadlineInput.value = date.format("MM/DD/YYYY");
+          deadlineInput.classList.add("active");
+          M.updateTextFields();
+        });
+      },
+    });
+
+    document.querySelector(".deadline-input").addEventListener("focus", (e) => {
+      e.preventDefault();
+      e.target.classList.add("active");
+      M.updateTextFields();
+    });
+
+    document.querySelector(".deadline-input").addEventListener("blur", (e) => {
+      e.preventDefault();
+      if (e.target.value) {
+        e.target.classList.add("active");
+      }
+      M.updateTextFields();
+    });
+  }
+
+  function openBulkAddAssignmentModal() {
+    const modal = document.getElementById("bulkAddAssignmentModal");
+    modal.style.display = "block";
+
+    pywebview.api.get_engagements().then((engagements) => {
+      const engagementSelect = document.getElementById("engagement_select");
+      const autocompleteData = {};
+
+      // Ensure the hidden input for selected_engagement_id exists
+      let selectedEngagementIdInput = document.getElementById(
+        "selected_engagement_id"
+      );
+      if (!selectedEngagementIdInput) {
+        selectedEngagementIdInput = document.createElement("input");
+        selectedEngagementIdInput.type = "hidden";
+        selectedEngagementIdInput.id = "selected_engagement_id";
+        engagementSelect.parentNode.appendChild(selectedEngagementIdInput);
+      }
+
+      engagements.forEach((engagement) => {
+        const engagementText = `${engagement.title} - ${
+          engagement.reporting_period || "N/A"
+        } (${engagement.engagement_type})`;
+        autocompleteData[engagementText] = null;
+      });
+
+      const autocomplete = M.Autocomplete.init(engagementSelect, {
+        data: autocompleteData,
+        onAutocomplete: function (selectedValue) {
+          const selectedEngagement = engagements.find(
+            (e) =>
+              `${e.title} - ${e.reporting_period || "N/A"} (${
+                e.engagement_type
+              })` === selectedValue
+          );
+          if (selectedEngagement) {
+            selectedEngagementIdInput.value = selectedEngagement.id;
+          }
+        },
+      });
+
+      engagementSelect.addEventListener("change", function () {
+        const selectedValue = this.value;
+        const selectedEngagement = engagements.find(
+          (e) =>
+            `${e.title} - ${e.reporting_period || "N/A"} (${
+              e.engagement_type
+            })` === selectedValue
+        );
+        if (selectedEngagement) {
+          selectedEngagementIdInput.value = selectedEngagement.id;
+        }
+      });
+    });
+
+    loadEmployees();
+  }
+
+  function loadEngagements() {
+    pywebview.api.get_engagements().then((engagements) => {
+      const engagementSelect = document.getElementById("engagement_select");
+
+      // Sort engagements alphabetically by title
+      engagements.sort((a, b) => a.title.localeCompare(b.title));
+
+      // Create autocomplete data object
+      const autocompleteData = {};
+      engagements.forEach((engagement) => {
+        const engagementText = `${engagement.title} - ${
+          engagement.reporting_period || "N/A"
+        } (${engagement.engagement_type})`;
+        autocompleteData[engagementText] = null; // null is used for Materialize autocomplete
+      });
+
+      // Initialize Materialize autocomplete
+      M.Autocomplete.init(engagementSelect, {
+        data: autocompleteData,
+        limit: 5,
+        minLength: 1,
+      });
+
+      // Set a hidden input to store the selected engagement ID
+      const hiddenInput = document.createElement("input");
+      hiddenInput.type = "hidden";
+      hiddenInput.id = "selected_engagement_id";
+      engagementSelect.parentNode.appendChild(hiddenInput);
+
+      // Update hidden input when an engagement is selected
+      engagementSelect.addEventListener("change", function () {
+        const selectedText = this.value;
+        const selectedEngagement = engagements.find(
+          (e) => `${e.title} (${e.engagement_type})` === selectedText
+        );
+        if (selectedEngagement) {
+          hiddenInput.value = selectedEngagement.id;
+        }
+      });
+    });
+  }
+
+  function loadEmployees() {
+    pywebview.api.get_employees(showInactiveEmployees).then((employees) => {
+      const employeeList = document.getElementById("employee-list");
+      employeeList.innerHTML = "";
+      employees.forEach((employee) => {
+        employeeList.innerHTML += `
+        <p>
+          <label>
+            <input type="checkbox" class="filled-in" value="${employee.id}" />
+            <span>${employee.first_name} ${employee.last_name}</span>
+          </label>
+        </p>
+      `;
+      });
+    });
+  }
+
+  document
+    .getElementById("createNewEngagement")
+    .addEventListener("click", createNewEngagement);
+  document
+    .getElementById("saveBulkAddAssignment")
+    .addEventListener("click", saveBulkAddAssignments);
+
+  function createNewEngagement() {
+    const title = document.getElementById("title").value.trim();
+    const engagementType = document
+      .getElementById("engagement_type")
+      .value.trim();
+    const partnerId = document.getElementById("partner_id").value;
+    const deadlineInput = document.getElementById("deadline").value.trim();
+    const fiscalYear = document.getElementById("fiscal_year").value.trim();
+
+    if (!title) {
+      M.toast({
+        html: "Please add an engagement title.",
+        classes: "red",
+      });
+      return;
+    }
+
+    let formattedDeadline = "";
+    // Convert the date to the format expected by the backend
+    if (deadlineInput) {
+      formattedDeadline = moment(deadlineInput, "MM/DD/YYYY").format(
+        "YYYY-MM-DD"
+      );
+    }
+
+    pywebview.api
+      .add_engagement({
+        title: title,
+        engagement_type: engagementType,
+        partner_id: partnerId,
+        deadline: formattedDeadline,
+        reporting_period: fiscalYear,
+      })
+      .then((response) => {
+        document.getElementById("newEngagementModal").style.display = "none";
+        document.getElementById("add-engagement-form").reset();
+        M.toast({
+          html: "New engagement created successfully!",
+          classes: "green",
+        });
+        refreshTimeline();
+        updateNoAssignmentsList();
+      })
+      .catch((error) => {
+        console.error("Error creating engagement:", error);
+        M.toast({
+          html: "Failed to create new engagement. Please try again.",
+          classes: "red",
+        });
+      });
+  }
+
+  function loadPartners() {
+    return pywebview.api.get_partners().then((partners) => {
+      console.log("Received partners:", partners);
+      return partners;
+    });
+  }
+
+  function saveEditAssignment(itemId) {
+    console.log("running 2");
+    const dateRange = document
+      .getElementById("editDateRange")
+      .value.split(" - ");
+    const engagementTitle = document.getElementById(
+      "editEngagementTitle"
+    ).value;
+    const engagementType = document.getElementById("editEngagementType").value;
+    const fiscalYear = document.getElementById("editFiscalYear").value;
+    const partnerId = document.getElementById("editPartner").value;
+    const deadline = document.getElementById("editDeadline").value;
+
+    // Adjust the end date to be the last moment of the day
+    const endDate = new Date(dateRange[1]);
+    endDate.setHours(23, 59, 59, 999);
+
+    // Update the timeline item
+    timeline.itemsData.update({
+      id: itemId,
+      start: new Date(dateRange[0]),
+      end: endDate,
+      content: `
+        <div class="engagement-info-container">
+            <span class="engagement-main-info">
+                ${engagementTitle} - ${fiscalYear} - ${engagementType}
+            </span>
+            <span class="engagement-partner">
+                ${document
+                  .getElementById("editPartner")
+                  .selectedOptions[0].text.split(" ")
+                  .map((name) => name[0])
+                  .join("")}
+            </span>
+            <span class="engagement-deadline">
+                DL ${deadline}
+            </span>
+        </div>
+        `,
+    });
+
+    // Send updated data to the server
+    pywebview.api
+      .update_assignment_and_engagement(itemId, {
+        start_date: dateRange[0],
+        end_date: formatDate(endDate),
+        engagement_title: engagementTitle,
+        engagement_type: engagementType,
+        fiscal_year: fiscalYear,
+        partner_id: partnerId,
+        deadline: deadline,
+      })
+      .then((response) => {
+        if (response.success) {
+          console.log("Successfully updated assignment and engagement");
+          M.toast({
+            html: "Assignment updated successfully!",
+            classes: "green",
+          });
+          document.getElementById("editAssignmentModal").style.display = "none";
+
+          console.log("Updating related assignments:");
+          response.updated_assignments.forEach((assignment) => {
+            const item = timeline.itemsData.get(assignment.id);
+            if (item) {
+              item.content = `
+                    <div class="engagement-info-container">
+                        <span class="engagement-main-info">
+                            ${assignment.engagement_title} - ${assignment.fiscal_year} - ${assignment.engagement_type}
+                        </span>
+                        <span class="engagement-partner">
+                            ${assignment.partner_initials}
+                        </span>
+                        <span class="engagement-deadline">
+                            DL ${assignment.deadline}
+                        </span>
+                    </div>
+                    `;
+              console.log("New content:", item.content);
+              timeline.itemsData.update(item);
+            } else {
+              console.log(
+                `Assignment ID ${assignment.id} not found in timeline`
+              );
+            }
+          });
+
+          console.log("Redrawing timeline");
+        } else {
+          throw new Error(response.error);
+        }
+      })
+      .catch((error) => {
+        console.error("Error updating assignment:", error);
+        M.toast({ html: "Failed to update assignment.", classes: "red" });
+      });
+  }
+
+  function saveBulkAddAssignments() {
+    const engagementSelect = document.getElementById("engagement_select");
+    const engagementId = document.getElementById(
+      "selected_engagement_id"
+    ).value;
+
+    const engagementTitle = document.getElementById("engagement_select").value;
+
+    const dateRange = document
+      .getElementById("bulk_date_range")
+      .value.split(" - ");
+    const selectedEmployees = Array.from(
+      document.querySelectorAll('#employee-list input[type="checkbox"]:checked')
+    ).map((cb) => cb.value);
+
+    if (!engagementId) {
+      M.toast({ html: "Please select an engagement.", classes: "red" });
+      return;
+    }
+
+    if (dateRange.length !== 2 || !dateRange[0] || !dateRange[1]) {
+      M.toast({ html: "Please select a valid date range.", classes: "red" });
+      return;
+    }
+
+    if (selectedEmployees.length === 0) {
+      M.toast({ html: "Please select at least one employee.", classes: "red" });
+      return;
+    }
+
+    const assignments = selectedEmployees.map((employeeId) => ({
+      engagement_id: engagementId,
+      engagement_title: engagementTitle,
+      employee_id: employeeId,
+      start_date: dateRange[0],
+      end_date: dateRange[1],
+    }));
+
+    pywebview.api.save_multiple_assignments(assignments).then((response) => {
+      document.getElementById("bulkAddAssignmentModal").style.display = "none";
+      document.getElementById("bulk-add-assignment-form").reset();
+      M.toast({
+        html: "Bulk assignments added successfully!",
+        classes: "green",
+      });
+      refreshTimeline();
+    });
+    updateNoAssignmentsList();
+  }
+  function updateNoAssignmentsList() {
+    pywebview.api.get_engagements_with_no_assignments().then((engagements) => {
+      const container = document.getElementById("no-assignments-container");
+      const list = document.getElementById("no-assignments-list");
+      list.innerHTML = `
+            <style>
+.compact-list .collection-header {
+    padding: 5px 10px;
+    background-color: #f5f5f5;
+    border-bottom: 2px solid #e0e0e0;
+    margin-top: 10px;  /* Add spacing above each partner section */
+}
+                .compact-list .collection-header:first-child {
+    margin-top: 0;  /* Remove top margin for first partner section */
+}
+                .compact-list .collection-header h5 {
+                    margin: 5px 0;
+                    font-size: 1.1rem;
+                    font-weight: bold;
+                }
+                
+.compact-list .collection-item {
+    padding: 5px 10px;
+    min-height: auto;
+    border-bottom: 1px solid #e0e0e0;
+    overflow: hidden;
+    text-align: left;
+    position: relative;
+}
+
+.compact-list .engagement-info {
+    font-size: 0.9rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: flex-start;
+}
+    .compact-list .engagement-item {
+    cursor: pointer;
+}
+
+.compact-list .collection-item:hover {
+    background-color: #f5f5f5;
+}
+
+
+                
+                .compact-list .engagement-name {
+                    font-weight: 500;
+                }
+                
+                .compact-list .engagement-details {
+                    font-size: 0.8rem;
+                }
+                
+                #no-assignments-container {
+                    max-height: 470px;
+                    overflow-y: auto;
+                    border: 1px solid #e0e0e0;
+                    border-radius: 4px;
+                    margin-top: 10px;
+                }
+            </style>
+        `;
+
+      // Sort engagements - putting "No Partner Set" at the bottom
+      engagements.sort((a, b) => {
+        const partnerA = a.partner_name || "No Partner Set";
+        const partnerB = b.partner_name || "No Partner Set";
+
+        if (partnerA === "No Partner Set" && partnerB !== "No Partner Set")
+          return 1;
+        if (partnerA !== "No Partner Set" && partnerB === "No Partner Set")
+          return -1;
+        return partnerA.localeCompare(partnerB);
+      });
+
+      if (engagements.length > 0) {
+        let currentPartner = "";
+        const listContent = document.createElement("div");
+        listContent.className = "collection compact-list";
+
+        engagements.forEach((engagement) => {
+          if (engagement.partner_name !== currentPartner) {
+            currentPartner = engagement.partner_name || "No Partner Set";
+            listContent.innerHTML += `
+                        <div class="collection-header">
+                            <h5>${currentPartner}</h5>
+                        </div>
+                    `;
+          }
+
+          listContent.innerHTML += `
+    <div class="collection-item engagement-item" 
+         data-engagement-id="${engagement.id}" 
+         title="${engagement.title} - ${engagement.reporting_period} - ${engagement.engagement_type}">
+        <div class="engagement-info">
+            ${engagement.title} ${engagement.reporting_period} - ${engagement.engagement_type}
+        </div>
+    </div>
+`;
+        });
+
+        list.appendChild(listContent);
+        container.style.display = "block";
+        const engagementItems = document.querySelectorAll(".engagement-item");
+        engagementItems.forEach((item) => {
+          item.addEventListener("click", function () {
+            const engagementId = this.getAttribute("data-engagement-id");
+            openEngagementEditModal(engagementId);
+          });
+        });
+      } else {
+        container.style.display = "none";
+      }
+    });
+  }
+
+  function openEngagementEditModal(engagementId) {
+    // First remove any existing modal
+    const existingModal = document.getElementById("editEngagementModal");
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    pywebview.api.get_engagement(engagementId).then((engagement) => {
+      const modalHTML = `
+            <div id="editEngagementModal" class="draggable-modal">
+                <div class="modal-header">
+                    <h4>Edit Engagement</h4>
+                </div>
+                <div class="modal-content">
+                    <form id="edit-engagement-form">
+                        <div class="input-field">
+                            <input id="edit_title" type="text" value="${
+                              engagement.title
+                            }" required>
+                            <label for="edit_title" class="active">Title</label>
+                        </div>
+                        <div class="input-field">
+                            <input id="edit_fiscal_year" type="text" value="${
+                              engagement.fiscal_year || ""
+                            }" required>
+                            <label for="edit_fiscal_year" class="active">Fiscal Year</label>
+                        </div>
+                        <div class="input-field">
+                            <input id="edit_engagement_type" type="text" value="${
+                              engagement.engagement_type
+                            }" required>
+                            <label for="edit_engagement_type" class="active">Engagement Type</label>
+                        </div>
+                        <div class="input-field">
+                            <select id="edit_partner_id" required>
+                                <option value="" disabled>Choose a partner</option>
+                            </select>
+                            <label>Partner</label>
+                        </div>
+                        <div class="input-field">
+                            <input id="edit_deadline" type="text" class="datepicker" value="${
+                              engagement.deadline || ""
+                            }" required>
+                            <label for="edit_deadline" class="active">Deadline</label>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button id="cancelEditEngagement" class="waves-effect waves-green btn-flat">Cancel</button>
+                    <button id="saveEditEngagement" class="waves-effect waves-green btn">Save Changes</button>
+                </div>
+            </div>
+        `;
+
+      // Add modal to DOM
+      document.body.insertAdjacentHTML("beforeend", modalHTML);
+      const modal = document.getElementById("editEngagementModal");
+      modal.style.display = "block";
+      centerModal(modal);
+      makeDraggable(modal);
+
+      // Initialize partner select
+      loadPartners().then((partners) => {
+        const partnerSelect = document.getElementById("edit_partner_id");
+        partnerSelect.innerHTML = ""; // Clear any existing options
+
+        // Add single default "Choose a partner" option
+        const defaultOption = document.createElement("option");
+        defaultOption.value = "";
+        defaultOption.textContent = "Choose a partner";
+        defaultOption.disabled = true;
+        defaultOption.selected = !engagement.partner_id;
+        partnerSelect.appendChild(defaultOption);
+
+        // Add partner options
+        partners.forEach((partner) => {
+          const option = document.createElement("option");
+          option.value = partner.id;
+          option.textContent = `${partner.first_name} ${partner.last_name}`;
+          option.selected = partner.id === engagement.partner_id;
+          partnerSelect.appendChild(option);
+        });
+        M.FormSelect.init(partnerSelect);
+      });
+
+      // Initialize datepicker
+      new Litepicker({
+        firstDay: 0,
+        element: document.getElementById("edit_deadline"),
+        singleMode: true,
+        format: "MM/DD/YYYY",
+      });
+
+      // Add event listeners
+      document
+        .getElementById("saveEditEngagement")
+        .addEventListener("click", () => {
+          const updatedEngagement = {
+            engagement_title: document.getElementById("edit_title").value,
+            engagement_type: document.getElementById("edit_engagement_type")
+              .value,
+            partner_id: document.getElementById("edit_partner_id").value,
+            deadline: document.getElementById("edit_deadline").value,
+            reporting_period: document.getElementById("edit_fiscal_year").value,
+          };
+
+          pywebview.api
+            .update_engagement(engagementId, updatedEngagement)
+            .then(() => {
+              modal.remove();
+              M.toast({
+                html: "Engagement updated successfully!",
+                classes: "green",
+              });
+              // Refresh both the unassigned list and timeline to show updated info
+              updateNoAssignmentsList();
+              refreshTimeline();
+            })
+            .catch((error) => {
+              M.toast({ html: "Error updating engagement", classes: "red" });
+              console.error("Error:", error);
+            });
+        });
+
+      document
+        .getElementById("cancelEditEngagement")
+        .addEventListener("click", () => {
+          modal.remove();
+        });
+    });
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    waitForPywebview(initializeSchedule);
+    document
+      .getElementById("saveScheduleBtn")
+      .addEventListener("click", saveSchedule);
+    document
+      .getElementById("birdsEyeViewBtn")
+      .addEventListener("click", toggleBirdsEyeView);
+
+    const newEngagementBtn = document.getElementById("newEngagementBtn");
+    const bulkAddAssignmentBtn = document.getElementById(
+      "bulkAddAssignmentBtn"
+    );
+    const newEngagementModal = document.getElementById("newEngagementModal");
+    const bulkAddAssignmentModal = document.getElementById(
+      "bulkAddAssignmentModal"
+    );
+
+    document
+      .getElementById("cancelNewEngagement")
+      .addEventListener("click", function () {
+        document.getElementById("newEngagementModal").style.display = "none";
+      });
+
+    document
+      .getElementById("cancelBulkAddAssignment")
+      .addEventListener("click", function () {
+        document.getElementById("bulkAddAssignmentModal").style.display =
+          "none";
+      });
+    const bulkDateRangeInput = document.getElementById("bulk_date_range");
+    const bulkDateRangeLabel = bulkDateRangeInput.nextElementSibling;
+    bulkDateRangeLabel.classList.add("active");
+
+    const bulkPicker = new Litepicker({
+      firstDay: 0,
+      element: bulkDateRangeInput,
+      singleMode: false,
+      format: "M/D/YYYY",
+
+      setup: (picker) => {
+        picker.on("selected", (date1, date2) => {
+          bulkDateRangeInput.value = `${formatDate(date1)} - ${formatDate(
+            date2
+          )}`;
+          bulkDateRangeInput.classList.add("active");
+          M.updateTextFields();
+        });
+      },
+    });
+
+    // Prevent Materialize from moving the label
+    bulkDateRangeInput.addEventListener("focus", (e) => {
+      e.preventDefault();
+      bulkDateRangeLabel.classList.add("active");
+    });
+
+    bulkDateRangeInput.addEventListener("blur", (e) => {
+      e.preventDefault();
+      bulkDateRangeLabel.classList.add("active");
+    });
+
+    newEngagementBtn.addEventListener("click", openNewEngagementModal);
+    bulkAddAssignmentBtn.addEventListener("click", openBulkAddAssignmentModal);
+
+    makeDraggable(newEngagementModal);
+    makeDraggable(bulkAddAssignmentModal);
+
+    const employeeFilterElement = document.getElementById("employeeFilter");
+    const engagementFilterElement = document.getElementById("engagementFilter");
+
+    if (employeeFilterElement) {
+      employeeFilterElement.addEventListener("input", filterSchedule);
+    }
+
+    if (engagementFilterElement) {
+      engagementFilterElement.addEventListener("input", filterSchedule);
+    }
+  });
+
+  function refreshTimeline() {
+    Promise.all([
+      pywebview.api.get_assignments(showInactiveEmployees),
+      pywebview.api.get_employees(showInactiveEmployees),
+      pywebview.api.get_all_time_off(showInactiveEmployees),
+    ]).then(([assignments, employees, timeOffData]) => {
+      // Process employees
+      allGroups = employees.map((employee) => ({
+        id: employee.id,
+        content: `<div>${employee.first_name} ${employee.last_name}</div>`,
+        hireDate: new Date(employee.hire_date),
+        isActive: employee.active_status,
+      }));
+
+      allGroups.sort((a, b) => {
+        if (a.isActive !== b.isActive) {
+          return a.isActive ? -1 : 1;
+        }
+        return a.hireDate - b.hireDate;
+      });
+
+      let lastActiveStatus = true;
+
+      allGroups = allGroups.map((group, index) => {
+        const adjustedHireDate = new Date(group.hireDate);
+        adjustedHireDate.setDate(adjustedHireDate.getDate() + 1);
+
+        const statusClass = group.isActive
+          ? "active-employee"
+          : "inactive-employee";
+        const statusText = group.isActive ? "Active" : "Inactive";
+
+        let divider = "";
+        if (lastActiveStatus && !group.isActive) {
+          divider = '<div class="employee-divider">Inactive Employees</div>';
+          lastActiveStatus = false;
+        }
+
+        group.content = `
+  ${divider}
+  <div class="${statusClass}">
+    <div class="employee-name">${group.content}</div>
+    <div class="hire-date">${adjustedHireDate.toLocaleDateString()}</div>
+    <div class="employee-status">${statusText}</div>
+  </div>
+`;
+
+        return {
+          ...group,
+          order: index,
+        };
+      });
+
+      // Process assignments
+      allItems = assignments.map((assignment) => {
+        return {
+          id: assignment.id,
+          group: assignment.employee_id,
+          content: `
+            <div class="engagement-info-container">
+              <span class="engagement-main-info">
+                  ${assignment.engagement_title} - ${
+            assignment.fiscal_year || "N/A"
+          } - ${assignment.engagement_type}
+              </span>
+              <span class="engagement-partner">
+                ${assignment.partner_initials || "N/A"}
+              </span>
+              <span class="engagement-deadline">
+                DL ${assignment.deadline || "N/A"}
+              </span>
+            </div>
+    `,
+          start: new Date(assignment.start_date + "T00:00:00"),
+          end: new Date(assignment.end_date + "T23:59:59"),
+          order: 2,
+        };
+      });
+
+      // Process time off
+      timeOffData.forEach((item) => {
+        allItems.push({
+          id: `timeoff_${item.id}`,
+          group: item.employee_id,
+          content: `${item.description}`,
+          start: new Date(item.start_date + "T00:00:00"),
+          end: new Date(item.end_date + "T23:59:59"),
+          className: "time-off-item",
+          order: 1, // This will ensure time off items are at the top
+        });
+      });
+
+      // Add current week as a background item
+      const today = new Date();
+      const startOfWeek = new Date(today);
+      startOfWeek.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+      startOfWeek.setHours(0, 0, 0, 0);
+
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      allItems.push({
+        id: "current-week",
+        start: startOfWeek,
+        end: endOfWeek,
+        type: "background",
+        className: "current-day-overlay",
+      });
+
+      timeline.setData({ items: allItems, groups: allGroups });
+      // Restore the current time marker position
+      timeline.setCurrentTime(new Date());
+
+      // Update employee filter autocomplete data
+      employeeData = allGroups.reduce((acc, employee) => {
+        acc[employee.content.split("<div>")[1].split("</div>")[0]] = null;
+        return acc;
+      }, {});
+
+      const employeeFilterElem = document.querySelector("#employeeFilter");
+      const employeeFilterInstance =
+        M.Autocomplete.getInstance(employeeFilterElem);
+      if (employeeFilterInstance) {
+        employeeFilterInstance.updateData(employeeData);
+      }
+
+      filterSchedule();
+    });
+  }
+
+  function formatDate(date) {
+    return `${date.getMonth() + 1}/${date.getDate()}/${date.getFullYear()}`;
+  }
+  function makeDraggable(element) {
+    interact(element).draggable({
+      listeners: {
+        move(event) {
+          const target = event.target;
+          const x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx;
+          const y = (parseFloat(target.getAttribute("data-y")) || 0) + event.dy;
+
+          target.style.transform = `translate(${x}px, ${y}px)`;
+          target.setAttribute("data-x", x);
+          target.setAttribute("data-y", y);
+        },
+      },
+    });
+  }
+
+  function filterByEngagement() {
+    const inputText = document
+      .getElementById("engagementFilter")
+      .value.toLowerCase();
+
+    if (!inputText) {
+      timeline.setData({ items: allItems, groups: allGroups });
+    } else {
+      const filteredItems = allItems.filter((item) =>
+        item.content.toLowerCase().includes(inputText)
+      );
+      const filteredGroupIds = new Set(filteredItems.map((item) => item.group));
+      const filteredGroups = allGroups.filter((group) =>
+        filteredGroupIds.has(group.id)
+      );
+
+      timeline.setData({ items: filteredItems, groups: filteredGroups });
+    }
+  }
+
+  document
+    .getElementById("compareScheduleBtn")
+    .addEventListener("click", function () {
+      pywebview.api.select_saved_schedule().then((changes) => {
+        if (changes) {
+          showComparisonModal(changes);
+        }
+      });
+    });
+
+  function showComparisonModal(changes) {
+    const formatEngagement = (e) =>
+      `${e.engagement_title} ${e.fiscal_year || "N/A"} (${e.engagement_type})`;
+
+    const styleChanges = `
+        <style>
+            .old-value {
+                color: #f44336;
+                text-decoration: line-through;
+                margin-right: 5px;
+            }
+            .new-value {
+                color: #4CAF50;
+                text-decoration: underline;
+            }
+        </style>
+    `;
+
+    const formatDateChange = (oldDate, newDate) => {
+      if (oldDate !== newDate) {
+        return `<span class="old-value">${oldDate}</span><span class="new-value">${newDate}</span>`;
+      }
+      return oldDate;
+    };
+
+    const formatValueChange = (oldValue, newValue) => {
+      if (oldValue !== newValue) {
+        return `<span class="old-value">${
+          oldValue || "N/A"
+        }</span><span class="new-value">${newValue || "N/A"}</span>`;
+      }
+      return oldValue || "N/A";
+    };
+
+    const modalHTML = `
+        ${styleChanges}
+        <div id="scheduleComparisonModal" class="modal modal-fixed-footer" style="height: 80%; width: 80%;">
+            <div class="modal-content">
+                <h4>Schedule Changes</h4>
+                <p>(Expirimental, use with caution)</p>
+                
+                <ul class="tabs">
+                    <li class="tab col s3">
+                        <a href="#newTab" class="active green-text">New (${
+                          changes.new_engagements.length +
+                          changes.new_assignments.length
+                        })</a>
+                    </li>
+                    <li class="tab col s3">
+                        <a href="#removedTab" class="red-text">Removed (${
+                          changes.removed_engagements.length +
+                          changes.removed_assignments.length
+                        })</a>
+                    </li>
+                    <li class="tab col s3">
+                        <a href="#modifiedTab" class="blue-text">Modified (${
+                          changes.modified_engagement_details.length +
+                          changes.modified_assignment_dates.length
+                        })</a>
+                    </li>
+                </ul>
+
+                <div id="newTab" class="tab-content" style="max-height: 500px; overflow-y: auto;">
+                    <h5>New Engagements</h5>
+                    <ul class="collection">
+                        ${changes.new_engagements
+                          .map(
+                            (e) => `
+                                <li class="collection-item">
+                                    <div class="new-engagement">
+                                        <strong>New Engagement Created:</strong> ${formatEngagement(
+                                          e
+                                        )}
+                                        <div class="details">
+                                            Partner: ${
+                                              e.partner_initials || "N/A"
+                                            }<br>
+                                            Deadline: ${e.deadline || "N/A"}<br>
+                                            Initial Assignment: ${
+                                              e.employee_name
+                                            }
+                                        </div>
+                                    </div>
+                                </li>
+                            `
+                          )
+                          .join("")}
+                    </ul>
+
+                    <h5>New Assignments</h5>
+                    <ul class="collection">
+                        ${changes.new_assignments
+                          .map(
+                            (a) => `
+                                <li class="collection-item">
+                                    <div class="new-assignment">
+                                        <strong>New Assignment Added to ${formatEngagement(
+                                          a.assignment
+                                        )}</strong>
+                                        <div class="details">
+                                            Employee: ${
+                                              a.assignment.employee_name
+                                            }<br>
+                                            Dates: ${
+                                              a.assignment.start_date
+                                            } to ${a.assignment.end_date}
+                                        </div>
+                                    </div>
+                                </li>
+                            `
+                          )
+                          .join("")}
+                    </ul>
+                </div>
+
+                <div id="removedTab" class="tab-content" style="max-height: 500px; overflow-y: auto;">
+                    <h5>Removed Engagements</h5>
+                    <ul class="collection">
+                        ${changes.removed_engagements
+                          .map(
+                            (e) => `
+                                <li class="collection-item">
+                                    <div class="removed-engagement">
+                                        <strong>Engagement Removed:</strong> ${formatEngagement(
+                                          e
+                                        )}
+                                        <div class="details">
+                                            Partner: ${
+                                              e.partner_initials || "N/A"
+                                            }
+                                        </div>
+                                    </div>
+                                </li>
+                            `
+                          )
+                          .join("")}
+                    </ul>
+
+                    <h5>Removed Assignments</h5>
+                    <ul class="collection">
+                        ${changes.removed_assignments
+                          .map(
+                            (a) => `
+                                <li class="collection-item">
+                                    <div class="removed-assignment">
+                                        <strong>Assignment Removed from ${formatEngagement(
+                                          a.assignment
+                                        )}</strong>
+                                        <div class="details">
+                                            Employee: ${
+                                              a.assignment.employee_name
+                                            }<br>
+                                            Previous Dates: ${
+                                              a.assignment.start_date
+                                            } to ${a.assignment.end_date}
+                                        </div>
+                                    </div>
+                                </li>
+                            `
+                          )
+                          .join("")}
+                    </ul>
+                </div>
+
+                <div id="modifiedTab" class="tab-content" style="max-height: 500px; overflow-y: auto;">
+                    <h5>Modified Engagements</h5>
+                    <ul class="collection">
+                        ${changes.modified_engagement_details
+                          .map(
+                            (m) => `
+                                <li class="collection-item">
+                                    <div class="modified-engagement">
+                                        <strong>${m.engagement_title} - ${
+                              m.fiscal_year
+                            } (${m.engagement_type})</strong>
+                                        <div class="details">
+                                            Partner: ${formatValueChange(
+                                              m.previous_partner,
+                                              m.current_partner
+                                            )}<br>
+                                            Deadline: ${formatValueChange(
+                                              m.previous_deadline,
+                                              m.current_deadline
+                                            )}
+                                        </div>
+                                    </div>
+                                </li>
+                            `
+                          )
+                          .join("")}
+                    </ul>
+
+                    <h5>Modified Assignments</h5>
+                    <ul class="collection">
+                        ${changes.modified_assignment_dates
+                          .map(
+                            (m) => `
+                                <li class="collection-item">
+                                    <div class="modified-dates">
+                                        <strong>${
+                                          m.assignment.engagement_title
+                                        } - ${
+                              m.assignment.fiscal_year || "N/A"
+                            } (${m.assignment.engagement_type})</strong>
+                                        <div class="details">
+                                            Employee: ${
+                                              m.assignment.employee_name
+                                            }<br>
+                                            Start Date: ${formatDateChange(
+                                              m.previous_start_date,
+                                              m.new_start_date
+                                            )}<br>
+                                            End Date: ${formatDateChange(
+                                              m.previous_end_date,
+                                              m.new_end_date
+                                            )}
+                                        </div>
+                                    </div>
+                                </li>
+                            `
+                          )
+                          .join("")}
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <a href="#!" class="modal-close waves-effect waves-green btn-flat">Close</a>
+            </div>
+        </div>
+    `;
+
+    const existingModal = document.getElementById("scheduleComparisonModal");
+    if (existingModal) {
+      existingModal.remove();
+    }
+
+    document.body.insertAdjacentHTML("beforeend", modalHTML);
+
+    const modal = document.getElementById("scheduleComparisonModal");
+    M.Modal.init(modal);
+
+    const modalInstance = M.Modal.getInstance(modal);
+    modalInstance.open();
+    M.Tabs.init(modal.querySelector(".tabs"));
+  }
+</script>
+{% endblock %}

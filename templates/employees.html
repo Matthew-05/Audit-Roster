@@ -1,0 +1,683 @@
+{% extends "base.html" %} {% block title %}Employees & Partners - Employee
+Scheduler{% endblock %} {% block content %}
+<style>
+  .tabs .tab a {
+    color: #26a69a;
+  }
+  .tabs .tab a:hover,
+  .tabs .tab a.active {
+    background-color: transparent;
+    color: #00897b;
+  }
+  .tabs .indicator {
+    background-color: #00897b;
+  }
+</style>
+
+<h2>People</h2>
+<ul class="tabs">
+  <li class="tab"><a href="#employees">Employees</a></li>
+  <li class="tab"><a href="#partners">Partners</a></li>
+</ul>
+<div id="employees">
+  <h3>Staff</h3>
+  <div>
+    <a
+      class="waves-effect waves-light btn modal-trigger"
+      href="#add-employee-modal"
+    >
+      <i class="material-icons left">add</i>New Staff
+    </a>
+  </div>
+
+  <table id="employee-table" class="striped">
+    <thead>
+      <tr>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Hire Date</th>
+        <th>Active Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div id="partners">
+  <h3>Partners</h3>
+  <div>
+    <a
+      class="waves-effect waves-light btn modal-trigger"
+      href="#add-partner-modal"
+    >
+      <i class="material-icons left">add</i>New Partner
+    </a>
+  </div>
+
+  <table id="partner-table" class="striped">
+    <thead>
+      <tr>
+        <th>First Name</th>
+        <th>Last Name</th>
+        <th>Initials</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<!-- Confirmation Modal -->
+<div id="confirm-modal" class="modal">
+  <div class="modal-content">
+    <h4>Confirm Action</h4>
+    <p id="confirm-message"></p>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+      >Cancel</a
+    >
+    <a href="#!" id="confirm-action" class="waves-effect waves-red btn-flat"
+      >Confirm</a
+    >
+  </div>
+</div>
+
+<div id="delete-employee-options-modal" class="modal">
+  <div class="modal-content">
+    <h4>Delete Employee Options</h4>
+    <p>How would you like to handle this employee deletion?</p>
+    <p>
+      (For rollover purposes, it is recommended to make the emplyoee inactive,
+      rather than delete them.)
+    </p>
+    <p>
+      <label>
+        <input name="delete-option" type="radio" value="inactive" checked />
+        <span>Make employee inactive</span>
+      </label>
+    </p>
+    <p>
+      <label>
+        <input name="delete-option" type="radio" value="delete-all" />
+        <span>Delete employee and all associated assignments</span>
+      </label>
+    </p>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+      >Cancel</a
+    >
+    <a
+      href="#!"
+      id="confirm-delete-employee"
+      class="waves-effect waves-red btn-flat"
+      >Confirm</a
+    >
+  </div>
+</div>
+
+<!-- Add Employee Modal -->
+<div id="add-employee-modal" class="modal">
+  <div class="modal-content">
+    <h4>Add Staff</h4>
+    <form id="add-employee-form">
+      <div class="input-field">
+        <input id="first_name" type="text" required />
+        <label for="first_name">First Name</label>
+      </div>
+      <div class="input-field">
+        <input id="last_name" type="text" required />
+        <label for="last_name">Last Name</label>
+      </div>
+      <div class="input-field">
+        <input id="hire_date" type="text" required />
+        <label for="hire_date">Hire Date</label>
+      </div>
+      <div class="switch">
+        <label>
+          Inactive
+          <input id="active_status" type="checkbox" checked />
+          <span class="lever"></span>
+          Active
+        </label>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+      >Cancel</a
+    >
+    <a
+      href="#!"
+      class="waves-effect waves-green btn-flat"
+      onclick="addEmployee()"
+      >Add</a
+    >
+  </div>
+</div>
+
+<!-- Edit Employee Modal -->
+<div id="edit-employee-modal" class="modal">
+  <div class="modal-content">
+    <h4>Edit Staff</h4>
+    <form id="edit-employee-form">
+      <input id="edit_id" type="hidden" />
+      <div class="input-field">
+        <input id="edit_first_name" type="text" required />
+        <label for="edit_first_name">First Name</label>
+      </div>
+      <div class="input-field">
+        <input id="edit_last_name" type="text" required />
+        <label for="edit_last_name">Last Name</label>
+      </div>
+      <div class="input-field">
+        <input id="edit_hire_date" type="text" required />
+        <label for="edit_hire_date">Hire Date</label>
+      </div>
+      <div class="switch">
+        <label>
+          Inactive
+          <input id="edit_active_status" type="checkbox" />
+          <span class="lever"></span>
+          Active
+        </label>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+      >Cancel</a
+    >
+    <a
+      href="#!"
+      class="waves-effect waves-green btn-flat"
+      onclick="updateEmployee()"
+      >Update</a
+    >
+  </div>
+</div>
+
+<!-- Add Partner Modal -->
+<div id="add-partner-modal" class="modal">
+  <div class="modal-content">
+    <h4>Add Partner</h4>
+    <form id="add-partner-form">
+      <div class="input-field">
+        <input id="partner_first_name" type="text" required />
+        <label for="partner_first_name">First Name</label>
+      </div>
+      <div class="input-field">
+        <input id="partner_last_name" type="text" required />
+        <label for="partner_last_name">Last Name</label>
+      </div>
+      <div class="input-field">
+        <input id="partner_initials" type="text" maxlength="10" />
+        <label for="partner_initials">Initials</label>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+      >Cancel</a
+    >
+    <a
+      href="#!"
+      class="waves-effect waves-green btn-flat"
+      onclick="addPartner()"
+      >Add</a
+    >
+  </div>
+</div>
+
+<!-- Edit Partner Modal -->
+<div id="edit-partner-modal" class="modal">
+  <div class="modal-content">
+    <h4>Edit Partner</h4>
+    <form id="edit-partner-form">
+      <input id="edit_partner_id" type="hidden" />
+      <div class="input-field">
+        <input id="edit_partner_first_name" type="text" required />
+        <label for="edit_partner_first_name">First Name</label>
+      </div>
+      <div class="input-field">
+        <input id="edit_partner_last_name" type="text" required />
+        <label for="edit_partner_last_name">Last Name</label>
+      </div>
+      <div class="input-field">
+        <input id="edit_partner_initials" type="text" maxlength="10" />
+        <label for="edit_partner_initials">Initials</label>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+      >Cancel</a
+    >
+    <a
+      href="#!"
+      class="waves-effect waves-green btn-flat"
+      onclick="updatePartner()"
+      >Update</a
+    >
+  </div>
+</div>
+
+<div id="delete-partner-options-modal" class="modal">
+  <div class="modal-content">
+    <h4>Delete Partner Options</h4>
+    <p>How would you like to handle this partner deletion?</p>
+    <p>
+      <label>
+        <input
+          name="delete-partner-option"
+          type="radio"
+          value="delete-all"
+          checked
+        />
+        <span>Delete partner and update associated records</span>
+      </label>
+    </p>
+  </div>
+  <div class="modal-footer">
+    <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+      >Cancel</a
+    >
+    <a
+      href="#!"
+      id="confirm-delete-partner"
+      class="waves-effect waves-red btn-flat"
+      >Confirm</a
+    >
+  </div>
+</div>
+
+{% endblock %} {% block scripts %} {{ super() }}
+<script>
+  let employeeTable;
+  let partnerTable;
+  let pywebviewReady = false;
+
+  function waitForPywebview(callback) {
+    if (window.pywebview && window.pywebview.api) {
+      pywebviewReady = true;
+      callback();
+    } else {
+      setTimeout(() => waitForPywebview(callback), 100);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var modals = document.querySelectorAll(".modal");
+    M.Modal.init(modals);
+
+    var tabs = document.querySelectorAll(".tabs");
+    M.Tabs.init(tabs);
+
+    employeeTable = new simpleDatatables.DataTable("#employee-table", {
+      perPage: 10,
+      perPageSelect: [5, 10, 15, 20, 25],
+      paging: true,
+      columns: [
+        { select: 0, sort: "asc" },
+        { select: 1, sort: "asc" },
+        { select: 2, sort: "asc", type: "date", format: "MM/DD/YYYY" },
+        { select: 3, sort: "asc" },
+        { select: 4, sortable: false },
+      ],
+      labels: {
+        placeholder: "Search...",
+        perPage: "",
+        noRows: "No entries found",
+        info: "Showing {start} to {end} of {rows} entries",
+      },
+      classes: {
+        wrapper: "dataTable-wrapper custom-datatable",
+        bottom: "dataTable-bottom",
+        pagination: "dataTable-pagination",
+      },
+    });
+
+    partnerTable = new simpleDatatables.DataTable("#partner-table", {
+      perPage: 10,
+      perPageSelect: [5, 10, 15, 20, 25],
+      paging: true,
+      columns: [
+        { select: 0, sort: "asc" },
+        { select: 1, sort: "asc" },
+        { select: 2, sortable: false },
+      ],
+      labels: {
+        placeholder: "Search...",
+        perPage: "",
+        noRows: "No entries found",
+        info: "Showing {start} to {end} of {rows} entries",
+      },
+      classes: {
+        wrapper: "dataTable-wrapper custom-datatable",
+        bottom: "dataTable-bottom",
+        pagination: "dataTable-pagination",
+      },
+    });
+
+    new Litepicker({
+      firstDay: 0,
+      element: document.getElementById("hire_date"),
+      format: "MM/DD/YYYY",
+      singleMode: true,
+      setup: (picker) => {
+        picker.on("selected", (date) => {
+          const input = document.getElementById("hire_date");
+          input.value = date.format("MM/DD/YYYY");
+          input.classList.add("active");
+          M.updateTextFields();
+        });
+      },
+    });
+
+    new Litepicker({
+      firstDay: 0,
+      element: document.getElementById("edit_hire_date"),
+      format: "MM/DD/YYYY",
+      singleMode: true,
+      setup: (picker) => {
+        picker.on("selected", (date) => {
+          const input = document.getElementById("edit_hire_date");
+          input.value = date.format("MM/DD/YYYY");
+          input.classList.add("active");
+          M.updateTextFields();
+        });
+      },
+    });
+
+    waitForPywebview(() => {
+      loadEmployees();
+      loadPartners();
+    });
+  });
+
+  function loadEmployees() {
+    window.pywebview.api.get_employees().then((data) => {
+      const rows = data.map((employee) => {
+        const hireDate = new Date(employee.hire_date);
+        hireDate.setDate(hireDate.getDate() + 1);
+
+        const formattedHireDate = `${(hireDate.getMonth() + 1)
+          .toString()
+          .padStart(2, "0")}/${hireDate
+          .getDate()
+          .toString()
+          .padStart(2, "0")}/${hireDate.getFullYear()}`;
+        return [
+          employee.first_name,
+          employee.last_name,
+          formattedHireDate,
+          employee.active_status ? "Active" : "Inactive",
+          `<a href="#!" onclick="editEmployee(${employee.id})"><i class="material-icons">edit</i></a>
+           <a href="#!" onclick="deleteEmployee(${employee.id})"><i class="material-icons">delete</i></a>`,
+        ];
+      });
+
+      employeeTable.destroy();
+      employeeTable = new simpleDatatables.DataTable("#employee-table", {
+        data: {
+          headings: [
+            "First Name",
+            "Last Name",
+            "Hire Date",
+            "Active Status",
+            "Actions",
+          ],
+          data: rows,
+        },
+        perPage: 10,
+        perPageSelect: [5, 10, 15, 20, 25],
+        paging: true,
+        columns: [
+          { select: 0, sort: "asc" },
+          { select: 1, sort: "asc" },
+          { select: 2, sort: "asc", type: "date", format: "MM/DD/YYYY" },
+          { select: 3, sort: "asc" },
+          { select: 4, sortable: false },
+        ],
+        labels: {
+          placeholder: "Search...",
+          perPage: "",
+          noRows: "No entries found",
+          info: "Showing {start} to {end} of {rows} entries",
+        },
+      });
+    });
+  }
+
+  function loadPartners() {
+    window.pywebview.api.get_partners().then((data) => {
+      const rows = data.map((partner) => {
+        console.log(partner);
+        return [
+          partner.first_name,
+          partner.last_name,
+          partner.initials,
+          `<a href="#!" onclick="editPartner(${partner.id})"><i class="material-icons">edit</i></a>
+         <a href="#!" onclick="deletePartner(${partner.id})"><i class="material-icons">delete</i></a>`,
+        ];
+      });
+
+      partnerTable.destroy();
+      partnerTable = new simpleDatatables.DataTable("#partner-table", {
+        data: {
+          headings: ["First Name", "Last Name", "Initials", "Actions"],
+          data: rows,
+        },
+
+        perPage: 10,
+        perPageSelect: [5, 10, 15, 20, 25],
+        paging: true,
+        columns: [
+          { select: 0, sort: "asc" },
+          { select: 1, sort: "asc" },
+          { select: 2, sortable: false },
+        ],
+        labels: {
+          placeholder: "Search...",
+          perPage: "",
+          noRows: "No entries found",
+          info: "Showing {start} to {end} of {rows} entries",
+        },
+      });
+    });
+  }
+
+  function addEmployee() {
+    const hireDate = document.getElementById("hire_date").value;
+    const data = {
+      first_name: document.getElementById("first_name").value,
+      last_name: document.getElementById("last_name").value,
+      hire_date: hireDate
+        ? new Date(hireDate).toISOString().split("T")[0]
+        : null,
+      active_status: document.getElementById("active_status").checked,
+    };
+    window.pywebview.api.add_employee(data).then((response) => {
+      M.Modal.getInstance(
+        document.getElementById("add-employee-modal")
+      ).close();
+      document.getElementById("add-employee-form").reset();
+      loadEmployees();
+      if (response.success) {
+        M.toast({ html: "Employee added successfully", classes: "green" });
+      } else {
+        M.toast({ html: "Failed to add employee", classes: "red" });
+      }
+    });
+  }
+
+  function editEmployee(id) {
+    window.pywebview.api.get_employee(id).then((data) => {
+      document.getElementById("edit_id").value = data.id;
+      document.getElementById("edit_first_name").value = data.first_name;
+      document.getElementById("edit_last_name").value = data.last_name;
+
+      // Format the hire date for the edit modal
+      const hireDate = new Date(data.hire_date);
+      hireDate.setDate(hireDate.getDate() + 1);
+      const formattedDate = `${(hireDate.getMonth() + 1)
+        .toString()
+        .padStart(2, "0")}/${hireDate
+        .getDate()
+        .toString()
+        .padStart(2, "0")}/${hireDate.getFullYear()}`;
+      document.getElementById("edit_hire_date").value = formattedDate;
+
+      document.getElementById("edit_active_status").checked =
+        data.active_status;
+      M.updateTextFields();
+      M.Modal.getInstance(
+        document.getElementById("edit-employee-modal")
+      ).open();
+    });
+  }
+
+  function updateEmployee() {
+    const id = document.getElementById("edit_id").value;
+    const hireDate = document.getElementById("edit_hire_date").value;
+    const data = {
+      first_name: document.getElementById("edit_first_name").value,
+      last_name: document.getElementById("edit_last_name").value,
+      hire_date: hireDate
+        ? new Date(hireDate).toISOString().split("T")[0]
+        : null,
+      active_status: document.getElementById("edit_active_status").checked,
+    };
+    window.pywebview.api.update_employee(id, data).then((response) => {
+      M.Modal.getInstance(
+        document.getElementById("edit-employee-modal")
+      ).close();
+      loadEmployees();
+      if (response.success) {
+        M.toast({ html: "Employee updated successfully", classes: "green" });
+      } else {
+        M.toast({ html: "Failed to update employee", classes: "red" });
+      }
+    });
+  }
+
+  function deleteEmployee(id) {
+    const modal = document.getElementById("delete-employee-options-modal");
+    const modalInstance = M.Modal.init(modal);
+    modalInstance.open();
+
+    document.getElementById("confirm-delete-employee").onclick = function () {
+      const selectedOption = document.querySelector(
+        'input[name="delete-option"]:checked'
+      ).value;
+
+      window.pywebview.api
+        .delete_employee(id, selectedOption)
+        .then((response) => {
+          modalInstance.close();
+          if (response.success) {
+            loadEmployees();
+            M.toast({
+              html: "Employee handled successfully",
+              classes: "green",
+            });
+          } else {
+            M.toast({ html: "Failed to handle employee", classes: "red" });
+          }
+        });
+    };
+  }
+
+  function addPartner() {
+    const data = {
+      first_name: document.getElementById("partner_first_name").value,
+      last_name: document.getElementById("partner_last_name").value,
+      initials: document.getElementById("partner_initials").value,
+    };
+    window.pywebview.api.add_partner(data).then((response) => {
+      M.Modal.getInstance(document.getElementById("add-partner-modal")).close();
+      document.getElementById("add-partner-form").reset();
+      loadPartners();
+      if (response.success) {
+        M.toast({ html: "Partner added successfully", classes: "green" });
+      } else {
+        M.toast({ html: "Failed to add partner", classes: "red" });
+      }
+    });
+  }
+
+  function editPartner(id) {
+    window.pywebview.api.get_partner(id).then((data) => {
+      document.getElementById("edit_partner_id").value = data.id;
+      document.getElementById("edit_partner_first_name").value =
+        data.first_name;
+      document.getElementById("edit_partner_last_name").value = data.last_name;
+      document.getElementById("edit_partner_initials").value = data.initials;
+      M.updateTextFields();
+      M.Modal.getInstance(document.getElementById("edit-partner-modal")).open();
+    });
+  }
+
+  function updatePartner() {
+    const id = document.getElementById("edit_partner_id").value;
+    const data = {
+      first_name: document.getElementById("edit_partner_first_name").value,
+      last_name: document.getElementById("edit_partner_last_name").value,
+      initials: document.getElementById("edit_partner_initials").value,
+    };
+    window.pywebview.api.update_partner(id, data).then((response) => {
+      M.Modal.getInstance(
+        document.getElementById("edit-partner-modal")
+      ).close();
+      loadPartners();
+      if (response.success) {
+        M.toast({ html: "Partner updated successfully", classes: "green" });
+      } else {
+        M.toast({ html: "Failed to update partner", classes: "red" });
+      }
+    });
+  }
+
+  function deletePartner(id) {
+    const modal = document.getElementById("delete-partner-options-modal");
+    const modalInstance = M.Modal.init(modal);
+    modalInstance.open();
+
+    document.getElementById("confirm-delete-partner").onclick = function () {
+      const selectedOption = document.querySelector(
+        'input[name="delete-partner-option"]:checked'
+      ).value;
+
+      window.pywebview.api
+        .delete_partner(id, selectedOption)
+        .then((response) => {
+          modalInstance.close();
+          if (response.success) {
+            loadPartners();
+            M.toast({ html: "Partner handled successfully", classes: "green" });
+          } else {
+            M.toast({ html: "Failed to handle partner", classes: "red" });
+          }
+        });
+    };
+  }
+
+  function showConfirmModal(message, onConfirm) {
+    const modal = document.getElementById("confirm-modal");
+    const confirmMessage = document.getElementById("confirm-message");
+    const confirmAction = document.getElementById("confirm-action");
+
+    confirmMessage.textContent = message;
+
+    const modalInstance = M.Modal.getInstance(modal);
+    modalInstance.open();
+
+    confirmAction.onclick = () => {
+      modalInstance.close();
+      onConfirm();
+    };
+  }
+</script>
+{% endblock %}

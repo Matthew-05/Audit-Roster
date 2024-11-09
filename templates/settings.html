@@ -1,0 +1,218 @@
+{% extends "base.html" %} {% block title %}Settings - Employee Scheduler{%
+endblock %} {% block content %}
+<div class="container">
+  <h2>Settings</h2>
+
+  <ul class="tabs">
+    <li class="tab"><a href="#general">General</a></li>
+    <li class="tab"><a href="#users">Users</a></li>
+    <li class="tab"><a href="#developer">Developer</a></li>
+  </ul>
+
+  <div id="general">
+    <h3>General Settings</h3>
+    <form id="general-settings-form">
+      <div class="input-field">
+        <input id="save_directory" type="text" required />
+        <label for="save_directory">Save Directory</label>
+        <button
+          id="select_save_directory"
+          class="btn-small waves-effect waves-light"
+        >
+          <i class="material-icons">folder_open</i>
+        </button>
+      </div>
+      <div class="switch">
+        <label>
+          Export Inactive Employees
+          <input id="export_inactive_employees" type="checkbox" />
+          <span class="lever"></span>
+        </label>
+      </div>
+      <div class="section"></div>
+      <button class="btn waves-effect waves-light" type="submit">
+        Save
+        <i class="material-icons right">save</i>
+      </button>
+    </form>
+  </div>
+
+  <div id="users">
+    <h3>User Management</h3>
+    <form id="add-user-form">
+      <div class="input-field">
+        <input id="new_username" type="text" required />
+        <label for="new_username">New Username</label>
+      </div>
+      <div class="input-field">
+        <input id="new_password" type="password" required />
+        <label for="new_password">New Password</label>
+      </div>
+      <button class="btn waves-effect waves-light" type="submit">
+        Add User
+        <i class="material-icons right">person_add</i>
+      </button>
+    </form>
+    <div id="user-list"></div>
+  </div>
+
+  <div id="developer">
+    <h3>Developer Settings</h3>
+    <form id="developer-settings-form">
+      <div class="input-field">
+        <input id="db_path" type="text" required />
+        <label for="db_path">Database Path</label>
+        <button id="select_db_path" class="btn-small waves-effect waves-light">
+          <i class="material-icons">folder_open</i>
+        </button>
+      </div>
+      <div class="switch">
+        <label>
+          Debug Mode
+          <input id="debug_mode" type="checkbox" />
+          <span class="lever"></span>
+        </label>
+      </div>
+      <div class="section"></div>
+      <button class="btn waves-effect waves-light" type="submit">
+        Save
+        <i class="material-icons right">save</i>
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %} {% block scripts %} {{ super() }}
+<script>
+  let pywebviewReady = false;
+
+  function waitForPywebview(callback) {
+    if (window.pywebview && window.pywebview.api) {
+      pywebviewReady = true;
+      callback();
+    } else {
+      setTimeout(() => waitForPywebview(callback), 100);
+    }
+  }
+
+  function deleteUser(userId) {
+    if (confirm("Are you sure you want to delete this user?")) {
+      window.pywebview.api.delete_user(userId).then((result) => {
+        if (result.success) {
+          M.toast({ html: result.message, classes: "green" });
+          loadUsers(); // Refresh the user list
+        } else {
+          M.toast({
+            html: "Error deleting user: " + result.error,
+            classes: "red",
+          });
+        }
+      });
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    var tabs = document.querySelectorAll(".tabs");
+    M.Tabs.init(tabs);
+
+    const generalForm = document.getElementById("general-settings-form");
+    const developerForm = document.getElementById("developer-settings-form");
+    const dbPathInput = document.getElementById("db_path");
+    const debugModeInput = document.getElementById("debug_mode");
+    const exportInactiveEmployeesInput = document.getElementById(
+      "export_inactive_employees"
+    );
+
+    waitForPywebview(() => {
+      // Load current settings
+      window.pywebview.api.get_settings_for_web().then((settings) => {
+        dbPathInput.value = settings.database_path;
+        debugModeInput.checked = settings.debug_mode;
+        document.getElementById("save_directory").value =
+          settings.save_directory || "";
+        exportInactiveEmployeesInput.checked =
+          settings.export_inactive_employees;
+        M.updateTextFields();
+      });
+
+      document
+        .getElementById("select_save_directory")
+        .addEventListener("click", function (e) {
+          e.preventDefault();
+          window.pywebview.api.select_save_directory().then((path) => {
+            console.log("Selected path:", path); // Add this line for debugging
+            if (path) {
+              document.getElementById("save_directory").value = path;
+              M.updateTextFields();
+            }
+          });
+        });
+
+      generalForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const data = {
+          save_directory: document.getElementById("save_directory").value,
+          export_inactive_employees: exportInactiveEmployeesInput.checked,
+        };
+        saveSettings(data);
+      });
+
+      developerForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        const data = {
+          database_path: dbPathInput.value,
+          debug_mode: debugModeInput.checked,
+        };
+        saveSettings(data);
+      });
+
+      document
+        .getElementById("add-user-form")
+        .addEventListener("submit", function (e) {
+          e.preventDefault();
+          const username = document.getElementById("new_username").value;
+          const password = document.getElementById("new_password").value;
+          window.pywebview.api.add_user(username, password).then((result) => {
+            if (result.success) {
+              M.toast({ html: "User added successfully", classes: "green" });
+              loadUsers();
+            } else {
+              M.toast({
+                html: "Error adding user: " + result.error,
+                classes: "red",
+              });
+            }
+          });
+        });
+
+      function loadUsers() {
+        window.pywebview.api.get_users().then((users) => {
+          const userList = document.getElementById("user-list");
+          userList.innerHTML = "<h4>Existing Users</h4>";
+          users.forEach((user) => {
+            userList.innerHTML += `
+          <p>
+            ${user.username}
+            <button class="btn-small red" onclick="deleteUser(${user.id})">Delete</button>
+          </p>`;
+          });
+        });
+      }
+
+      loadUsers();
+
+      function saveSettings(data) {
+        window.pywebview.api.save_settings(data).then((result) => {
+          if (result) {
+            M.toast({
+              html: "Settings saved successfully! Some changes may only take effect after restarting the application.",
+              classes: "green",
+            });
+          } else {
+            M.toast({ html: "Error saving settings." });
+          }
+        });
+      }
+    });
+  });
+</script>
+{% endblock %}
