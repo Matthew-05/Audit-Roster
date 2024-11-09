@@ -6,10 +6,10 @@ import sys
 import os
 from packaging import version
 
-def check_for_updates():
+def check_for_updates(VERSION):
     try:
         # Replace with your GitHub repo API URL
-        api_url = "https://api.github.com/repos/yourusername/your-repo/releases/latest"
+        api_url = "https://api.github.com/repos/Matthew-05/Audit-Roster/releases/latest"
         response = requests.get(api_url)
         if response.status_code == 200:
             latest_release = response.json()
@@ -23,6 +23,7 @@ def check_for_updates():
                 }
     except Exception as e:
         print(f"Error checking for updates: {e}")
+    print({'update_available': False})
     return {'update_available': False}
 
 def download_and_install_update(download_url):

@@ -2003,7 +2003,7 @@ def login():
 debug_mode = settings['General'].getboolean('Debug')
 if __name__ == '__main__':
     # Check for updates
-    update_info = check_for_updates()
+    update_info = check_for_updates(VERSION)
     if update_info['update_available']:
         root = tk.Tk()
         root.withdraw()
