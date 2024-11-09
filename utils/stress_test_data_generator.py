@@ -3,13 +3,17 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from flask import Flask
-from models import db, Employee, Partner, Engagement, Assignment, TimeOff, Observation
+from models import db, Employee, Partner, Engagement, Assignment, TimeOff, Observation, User
 from datetime import datetime, timedelta
 import random
 from faker import Faker
+from alembic import op
+from sqlalchemy import Table, Column, String, MetaData
+from werkzeug.security import generate_password_hash
+
 
 # Generate a new database file in the script's directory
-db_file = 'stress_test_database.db'
+db_file = 'employee_scheduler.db'
 db_path = os.path.join(os.path.dirname(__file__), db_file)
 
 app = Flask(__name__)
@@ -111,50 +115,72 @@ def generate_observations(num_observations, engagements, employees, partners):
             observer_id=random.choice(employees).id if random.choice([True, False]) else None,
             observer_partner_id=random.choice(partners).id if random.choice([True, False]) else None,
             outside_observer=fake.name() if random.choice([True, False]) else None,
-            scheduled_observation_date=fake.date_between(start_date='today', end_date='+1y')
+            scheduled_observation_date=fake.date_between(start_date='today', end_date='+1y'),
+            hidden=random.choice([True, False])
         )
         observations.append(observation)
     db.session.add_all(observations)
     db.session.commit()
     return observations
 
+def generate_users(num_users):
+    users = []
+    passwords = []
+    for _ in range(num_users):
+        password = fake.password()
+        hashed_password = generate_password_hash(password)
+        user = User(
+            username=fake.user_name(),
+            password_hash=hashed_password
+        )
+        users.append(user)
+        passwords.append(password)
+        print(f"Generated user: {user.username}, Password: {password}")
+    db.session.add_all(users)
+    db.session.commit()
+    return users, passwords
+
+
+
+
+
+
+
 def generate_stress_test_data():
     with app.app_context():
         db.create_all()
         print(f"Created new database at {db_path}")
         
+        # Create alembic_version table and insert the version_num
+        metadata = MetaData()
+        alembic_version = Table(
+            'alembic_version',
+            metadata,
+            Column('version_num', String(32), primary_key=True),
+        )
+        metadata.create_all(db.engine)
+        
+        with db.engine.connect() as connection:
+            connection.execute(alembic_version.insert().values(version_num='5f07ce0654b9'))
+
+
+        print(f"Created new database at {db_path}")
+        
         print("Generating employees...")
-        employees = generate_employees(100)
+        employees = generate_employees(20)
         print("Generating partners...")
-        partners = generate_partners(15)
+        partners = generate_partners(5)
         print("Generating engagements...")
-        engagements = generate_engagements(800, partners)
+        engagements = generate_engagements(300, partners)
         print("Generating assignments...")
-        generate_assignments_for_engagements(engagements, employees)
+        generate_assignments(500, employees, engagements)
+        print("Generating time off...")
+        generate_time_off(55, employees)
         print("Generating observations...")
-        generate_observations(200, engagements, employees, partners)
+        generate_observations(20, engagements, employees, partners)
+        print("Generating users...")
+        generate_users(5)
         print("Data generation complete!")
-
-def generate_assignments_for_engagements(engagements, employees):
-    assignments = []
-    for engagement in engagements:
-        num_assignments = random.randint(2, 4)
-        for _ in range(num_assignments):
-            start_date = fake.date_between(start_date='today', end_date='+1y')
-            end_date = start_date + timedelta(days=random.randint(1, 90))
-            assignment = Assignment(
-                employee_id=random.choice(employees).id,
-                engagement_id=engagement.id,
-                start_date=start_date,
-                end_date=end_date
-            )
-            assignments.append(assignment)
-    db.session.add_all(assignments)
-    db.session.commit()
-    return assignments
-
-
-
 
 if __name__ == "__main__":
     generate_stress_test_data()
