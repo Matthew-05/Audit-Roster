@@ -69,8 +69,8 @@ setup_crash_logging()
 # git tag -a 1.0.0 - m "Description"
 # git archive --format=zip HEAD -o  version.zip
 
-PREVIOUS_VERSION = "2.0.0"
-VERSION = "2.0.0"
+PREVIOUS_VERSION = "2.1.1"
+VERSION = "2.1.2"
 
 can_migrate = False
 need_to_generate_db = False
@@ -81,8 +81,10 @@ def check_database_accessibility():
     global need_to_generate_db
     settings = get_settings()
     db_path = settings['Database']['Path']
-    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+    
+    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AuditRoster")
     settings_file = os.path.join(settings_dir, 'settings.ini')
+    
     if os.path.exists(settings_file):
         if not os.path.exists(db_path):
             root = tk.Tk()
@@ -134,18 +136,9 @@ def check_database_accessibility():
                         #    print("Database version is previous. Applying migrations...")
                         #    can_migrate = True
                         else:
-                            root = tk.Tk()
-                            root.withdraw()
-                            override = messagebox.askyesno("Version Mismatch", 
-                                f"Database version ({db_version}) does not match current ({VERSION}) or previous ({PREVIOUS_VERSION}) version.\n\nDo you want to override and continue?")
-                            if not override:
-                                sys.exit(1)
-                            else:
-                                print("User chose to override version mismatch and continue.")
-                                # Optionally update the database version to the current version
-                                cursor.execute("UPDATE version_info SET version = ?", (VERSION,))
-                                conn.commit()
-                
+                            cursor.execute("UPDATE version_info SET version = ?", (VERSION,))
+                            conn.commit()
+            
                 conn.close()
                 return db_path
             except sqlite3.Error:
@@ -160,12 +153,15 @@ def check_database_accessibility():
 
 
 def generate_new_database_path(settings):
-    new_db_path = os.path.join(os.path.dirname(settings['Database']['Path']), 'employee_scheduler.db')
+    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AuditRoster")
+    new_db_path = os.path.join(settings_dir, 'employee_scheduler.db')
     settings['Database']['Path'] = new_db_path
-    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
     settings_file = os.path.join(settings_dir, 'settings.ini')
     with open(settings_file, 'w') as configfile:
         settings.write(configfile)
+    return new_db_path
+
+
     
     # Update the Flask app's database URI
     #server.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{new_db_path}'
@@ -182,7 +178,7 @@ def generate_new_database_path(settings):
 
 def get_settings():
     config = configparser.ConfigParser()
-    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AuditRoster")
     os.makedirs(settings_dir, exist_ok=True)
     settings_file = os.path.join(settings_dir, 'settings.ini')
 
@@ -291,6 +287,9 @@ def get_migrations_path():
     base_path = os.path.dirname(os.path.abspath(__file__))
     internal_path = os.path.join(base_path, '_internal', 'migrations')
     default_path = os.path.join(base_path, 'migrations')
+
+    print(os.path.join(base_path, '_internal',))
+    
     
     return internal_path if os.path.exists(internal_path) else default_path
 
@@ -301,7 +300,7 @@ migrate = Migrate(server, db, directory=get_migrations_path())
 
 
 if can_migrate == True:
-    migrate = Migrate(server, db)
+    migrate = Migrate(server, db, directory=get_migrations_path())
     #server.extensions['migrate'] = migrate
     #apply_migrations(server)
 
@@ -440,7 +439,7 @@ class Api:
             with self.app.app_context():
                 settings = get_settings()
                 settings['General']['SaveDirectory'] = result
-                settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+                settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AuditRoster")
                 settings_file = os.path.join(settings_dir, 'settings.ini')
                 with open(settings_file, 'w') as configfile:
                     settings.write(configfile)
@@ -467,7 +466,7 @@ class Api:
             print(f"Last version: {last_version}, Current version: {VERSION}") 
             if last_version != VERSION:
                 settings['General']['LastVersion'] = VERSION
-                settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+                settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AuditRoster")
                 settings_file = os.path.join(settings_dir, 'settings.ini')
                 with open(settings_file, 'w') as configfile:
                     settings.write(configfile)
@@ -489,7 +488,7 @@ class Api:
             if 'export_inactive_employees' in data:
                 settings['Schedule']['ExportInactiveEmployees'] = str(data['export_inactive_employees'])
 
-            settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+            settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AuditRoster")
             settings_file = os.path.join(settings_dir, 'settings.ini')
             with open(settings_file, 'w') as configfile:
                 settings.write(configfile)
@@ -2096,7 +2095,7 @@ if __name__ == '__main__':
     if not check_and_create_user():
         sys.exit(0)
 
-    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "AuditRoster")
     settings_file = os.path.join(settings_dir, 'settings.ini')
     
     settings['General']['CurrentlyOpen'] = 'True'
