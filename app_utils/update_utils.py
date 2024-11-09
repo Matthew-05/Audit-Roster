@@ -14,28 +14,38 @@ def check_for_updates(VERSION):
         if response.status_code == 200:
             latest_release = response.json()
             latest_version = latest_release['tag_name']
+            exe_asset = None
+            internal_zip_asset = None
+            for asset in latest_release['assets']:
+                if asset['name'].endswith('.exe'):
+                    exe_asset = asset
+                elif asset['name'].endswith('.zip'):
+                    internal_zip_asset = asset
             
-            # Check if there are any assets before trying to access them
-            if latest_release['zipball_url']:
-                download_url = latest_release['zipball_url']
+            if exe_asset and internal_zip_asset:
+                exe_download_url = exe_asset['browser_download_url']
+                internal_zip_download_url = internal_zip_asset['browser_download_url']
+                print(f"Executable Download URL: {exe_download_url}")
+                print(f"Internal ZIP Download URL: {internal_zip_download_url}")
             else:
-                print("No assets found in the release")
+                print("Required assets not found in the release")
                 return {'update_available': False}
             
             if version.parse(latest_version) > version.parse(VERSION):
                 return {
                     'update_available': True,
                     'version': latest_version,
-                    'download_url': download_url
+                    'exe_download_url': exe_download_url,
+                    'internal_zip_download_url': internal_zip_download_url
                 }
     except Exception as e:
         print(f"Error checking for updates: {e}")
     return {'update_available': False}
 
-def download_and_install_update(download_url):
+def download_and_install_update(download_url, internal_zip_url):
     try:
         import tkinter as tk
-        from tkinter import ttk
+        from tkinter import ttk, messagebox
         
         # Create progress window
         root = tk.Tk()
@@ -59,34 +69,39 @@ def download_and_install_update(download_url):
         os.makedirs(temp_dir, exist_ok=True)
         
         def perform_update():
-            # Download update
-            response = requests.get(download_url, stream=True)
-            update_zip = os.path.join(temp_dir, 'update.zip')
-            with open(update_zip, 'wb') as f:
-                shutil.copyfileobj(response.raw, f)
+            # Prompt user to backup the database
+            backup_db = messagebox.askyesno("Backup Database", "Do you want to backup the database before updating?")
             
-            # Extract update
-            with zipfile.ZipFile(update_zip, 'r') as zip_ref:
+            if backup_db:
+                # Backup the database
+                db_path = os.path.join(base_dir, 'employee_scheduler.db')
+                backup_path = os.path.join(base_dir, 'employee_scheduler_backup.db')
+                shutil.copyfile(db_path, backup_path)
+            
+            # Download the executable
+            exe_path = os.path.join(temp_dir, 'staff_scheduler.exe')
+            response = requests.get(download_url)
+            with open(exe_path, 'wb') as f:
+                f.write(response.content)
+            
+            # Download the internal ZIP file
+            internal_zip_path = os.path.join(temp_dir, 'internal.zip')
+            response = requests.get(internal_zip_url)
+            with open(internal_zip_path, 'wb') as f:
+                f.write(response.content)
+            
+            # Extract the internal ZIP file
+            with zipfile.ZipFile(internal_zip_path, 'r') as zip_ref:
                 zip_ref.extractall(temp_dir)
-                
-            # Find the extracted directory
-            extracted_dir = None
-            for item in os.listdir(temp_dir):
-                if item.startswith('Matthew-05-Audit-Roster'):
-                    extracted_dir = os.path.join(temp_dir, item)
-                    break
-            
-            if not extracted_dir:
-                raise Exception("Could not find extracted update directory")
             
             # Create and execute update script silently
             batch_file = os.path.join(temp_dir, 'update.bat')
             script_content = f'''
 @echo off
 cd /d "{base_dir}"
-robocopy "{extracted_dir}" "{base_dir}" /E /IS /IT /IM /NFL /NDL /NJH /NJS
+robocopy "{temp_dir}" "{base_dir}" /E /IS /IT /IM /NFL /NDL /NJH /NJS
 rd /s /q "{temp_dir}" 2>nul
-start "" "{sys.executable}"
+start "" "{exe_path}"
 '''
             with open(batch_file, 'w') as f:
                 f.write(script_content)

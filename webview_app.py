@@ -70,7 +70,7 @@ setup_crash_logging()
 # git archive --format=zip HEAD -o  version.zip
 
 PREVIOUS_VERSION = "2.0.0"
-VERSION = "2.1.0"
+VERSION = "2.0.0"
 
 can_migrate = False
 need_to_generate_db = False
@@ -81,8 +81,9 @@ def check_database_accessibility():
     global need_to_generate_db
     settings = get_settings()
     db_path = settings['Database']['Path']
-    
-    if os.path.exists('settings.ini'):
+    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+    settings_file = os.path.join(settings_dir, 'settings.ini')
+    if os.path.exists(settings_file):
         if not os.path.exists(db_path):
             root = tk.Tk()
             root.withdraw()
@@ -93,7 +94,7 @@ def check_database_accessibility():
                 new_db_path = filedialog.askopenfilename(title="Select Database File", filetypes=[("SQLite Database", "*.db")])
                 if new_db_path:
                     settings['Database']['Path'] = new_db_path
-                    with open('settings.ini', 'w') as configfile:
+                    with open(settings_file, 'w') as configfile:
                         settings.write(configfile)
                     return new_db_path
                 else:
@@ -161,7 +162,9 @@ def check_database_accessibility():
 def generate_new_database_path(settings):
     new_db_path = os.path.join(os.path.dirname(settings['Database']['Path']), 'employee_scheduler.db')
     settings['Database']['Path'] = new_db_path
-    with open('settings.ini', 'w') as configfile:
+    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+    settings_file = os.path.join(settings_dir, 'settings.ini')
+    with open(settings_file, 'w') as configfile:
         settings.write(configfile)
     
     # Update the Flask app's database URI
@@ -179,7 +182,10 @@ def generate_new_database_path(settings):
 
 def get_settings():
     config = configparser.ConfigParser()
-    settings_file = 'settings.ini'
+    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+    os.makedirs(settings_dir, exist_ok=True)
+    settings_file = os.path.join(settings_dir, 'settings.ini')
+
     
     default_settings = {
         'Database': {
@@ -434,7 +440,9 @@ class Api:
             with self.app.app_context():
                 settings = get_settings()
                 settings['General']['SaveDirectory'] = result
-                with open('settings.ini', 'w') as configfile:
+                settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+                settings_file = os.path.join(settings_dir, 'settings.ini')
+                with open(settings_file, 'w') as configfile:
                     settings.write(configfile)
             return True
         return False
@@ -459,7 +467,9 @@ class Api:
             print(f"Last version: {last_version}, Current version: {VERSION}") 
             if last_version != VERSION:
                 settings['General']['LastVersion'] = VERSION
-                with open('settings.ini', 'w') as configfile:
+                settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+                settings_file = os.path.join(settings_dir, 'settings.ini')
+                with open(settings_file, 'w') as configfile:
                     settings.write(configfile)
                 return {'new_version': VERSION, 'old_version': last_version}
             return None
@@ -479,7 +489,9 @@ class Api:
             if 'export_inactive_employees' in data:
                 settings['Schedule']['ExportInactiveEmployees'] = str(data['export_inactive_employees'])
 
-            with open('settings.ini', 'w') as configfile:
+            settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+            settings_file = os.path.join(settings_dir, 'settings.ini')
+            with open(settings_file, 'w') as configfile:
                 settings.write(configfile)
             return True
 
@@ -2083,15 +2095,18 @@ if __name__ == '__main__':
     
     if not check_and_create_user():
         sys.exit(0)
+
+    settings_dir = os.path.join(os.path.expanduser("~"), "AppData", "Local", "StaffScheduler")
+    settings_file = os.path.join(settings_dir, 'settings.ini')
     
     settings['General']['CurrentlyOpen'] = 'True'
-    with open('settings.ini', 'w') as configfile:
+    with open(settings_file, 'w') as configfile:
         settings.write(configfile)
     
     def on_closed():
         settings = get_settings()
         settings['General']['CurrentlyOpen'] = 'False'
-        with open('settings.ini', 'w') as configfile:
+        with open(settings_file, 'w') as configfile:
             settings.write(configfile)
         
         # Log the logout event
