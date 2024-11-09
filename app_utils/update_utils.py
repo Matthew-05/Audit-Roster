@@ -17,7 +17,7 @@ def check_for_updates(VERSION):
             exe_asset = None
             internal_zip_asset = None
             for asset in latest_release['assets']:
-                if asset['name'].endswith('.exe'):
+                if asset['name'].endswith('.exe') and 'installer' not in asset['name'].lower():
                     exe_asset = asset
                 elif asset['name'].endswith('.zip'):
                     internal_zip_asset = asset
