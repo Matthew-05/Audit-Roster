@@ -28,6 +28,21 @@ def generate_changelog_html():
         <div class="col s12">
             <div class="card">
                 <div class="card-content">
+                    <span class="card-title">v2.1.0</span>
+                    <ul class="changelog-list">
+                        <li>Added:</li>
+                        <ul class="changelog-sublist">
+                            <li>Added update check and patcher.</li>
+                            <li>Vastly improved loading speed.</li>
+                        </ul>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="col s12">
+            <div class="card">
+                <div class="card-content">
                     <span class="card-title">v2.0.0</span>
                     <ul class="changelog-list">
                         <li>Added:</li>

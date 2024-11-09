@@ -28,10 +28,49 @@ import sys
 from dateutil.relativedelta import relativedelta
 
 from app_utils.update_utils import check_for_updates, download_and_install_update
+import traceback
+
+def setup_crash_logging():
+    def handle_exception(exc_type, exc_value, exc_traceback):
+        # Get the current timestamp
+        timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        
+        # Create logs directory if it doesn't exist
+        logs_dir = 'crash_logs'
+        os.makedirs(logs_dir, exist_ok=True)
+        
+        # Create crash log file
+        crash_file = os.path.join(logs_dir, f'crash_{timestamp}.log')
+        
+        with open(crash_file, 'w') as f:
+            f.write(f"Crash Report - {timestamp}\n")
+            f.write("-" * 50 + "\n\n")
+            
+            # Write system info
+            f.write("System Information:\n")
+            f.write(f"Python Version: {sys.version}\n")
+            f.write(f"Platform: {sys.platform}\n\n")
+            
+            # Write exception info
+            f.write("Exception Details:\n")
+            f.write(f"Type: {exc_type.__name__}\n")
+            f.write(f"Message: {str(exc_value)}\n\n")
+            
+            # Write full traceback
+            f.write("Traceback:\n")
+            traceback.print_exception(exc_type, exc_value, exc_traceback, file=f)
+    
+    # Set as the default exception handler
+    sys.excepthook = handle_exception
+
+setup_crash_logging()
 
 
-PREVIOUS_VERSION = "1.9.1"
-VERSION = "2.0.0"
+# git tag -a 1.0.0 - m "Description"
+# git archive --format=zip HEAD -o  version.zip
+
+PREVIOUS_VERSION = "2.0.0"
+VERSION = "2.1.0"
 
 can_migrate = False
 need_to_generate_db = False
@@ -242,7 +281,18 @@ server.config['SECRET_KEY'] = 'your_secret_key_here'
 
 
 db.init_app(server)
-migrate = Migrate(server, db)
+def get_migrations_path():
+    base_path = os.path.dirname(os.path.abspath(__file__))
+    internal_path = os.path.join(base_path, '_internal', 'migrations')
+    default_path = os.path.join(base_path, 'migrations')
+    
+    return internal_path if os.path.exists(internal_path) else default_path
+
+print(f"Migrations path: {get_migrations_path()}")
+
+# Then modify the migrate initialization to use this path
+migrate = Migrate(server, db, directory=get_migrations_path())
+
 
 if can_migrate == True:
     migrate = Migrate(server, db)
