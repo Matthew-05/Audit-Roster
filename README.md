@@ -18,13 +18,13 @@ Audit Roster is a comprehensive staff scheduling and engagement management appli
 
 ## Screenshots
 
-![Screenshot 1]()
+![Main View](https://github.com/user-attachments/assets/49b7eb41-f4f7-4331-b8cc-01007e5fefe5)
 _The main viewer/editor._
 
-![Screenshot 2]()
+![Engagements View](https://github.com/user-attachments/assets/2f4ff79d-66ee-4359-bd69-6f49684d9a29)
 _Added engagements and assignments view._
 
-![Screenshot 3]()
+![Reports View](https://github.com/user-attachments/assets/c36309f1-5253-415e-9680-98660e0fd8e0)
 _Generated reports._
 
 ## Installation
