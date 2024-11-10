@@ -185,32 +185,61 @@ endblock %} {% block content %}
     margin-top: 10px;
   }
 </style>
-<div class="section">
-  <button
-    class="waves-effect waves-light btn blue darken-2"
-    id="newEngagementBtn"
-  >
-    <i class="material-icons left">add</i>
-    New Engagement
-  </button>
-  <button
-    class="waves-effect waves-light btn blue darken-2"
-    id="bulkAddAssignmentBtn"
-  >
-    <i class="material-icons left">group_add</i>
-    Bulk Add Assignment
-  </button>
-  <button id="birdsEyeViewBtn" class="waves-effect waves-light grey btn">
-    <i class="material-icons left">visibility</i>
-    Toggle Birds Eye View
-  </button>
-  <button class="waves-effect waves-light btn orange" id="compareScheduleBtn">
-    <i class="material-icons left">compare</i>
-    Compare Schedule
-  </button>
+<div class="section" style="display: flex; gap: 10px; align-items: center">
+  <!-- Assignment Management Group -->
+  <div class="btn-group">
+    <a
+      class="dropdown-trigger btn blue darken-2"
+      href="#"
+      data-target="assignment-dropdown"
+    >
+      <i class="material-icons left">add</i>Project Management
+    </a>
+    <ul id="assignment-dropdown" class="dropdown-content">
+      <li>
+        <a href="#!" id="newEngagementBtn">
+          <i class="material-icons left">add</i>New Engagement
+        </a>
+      </li>
+      <li>
+        <a href="#!" id="bulkAddAssignmentBtn">
+          <i class="material-icons left">group_add</i>Create Assignments
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- View Options Group -->
+  <div class="btn-group">
+    <a class="dropdown-trigger btn grey" href="#" data-target="view-dropdown">
+      <i class="material-icons left">visibility</i>View Options
+    </a>
+    <ul id="view-dropdown" class="dropdown-content">
+      <li>
+        <a href="#!" id="birdsEyeViewBtn">
+          <i class="material-icons left">visibility</i>Toggle Birds Eye View
+        </a>
+      </li>
+      <li>
+        <a href="#!" id="compareScheduleBtn">
+          <i class="material-icons left">compare</i>Compare Schedule
+        </a>
+      </li>
+      <li class="divider"></li>
+      <li>
+        <a href="#!" style="display: flex; align-items: center; padding: 14px">
+          <label style="color: inherit">
+            <input type="checkbox" id="showInactiveEmployees" />
+            <span>Show Inactive Staff</span>
+          </label>
+        </a>
+      </li>
+    </ul>
+  </div>
+
+  <!-- Save Button -->
   <button class="waves-effect waves-light btn green" id="saveScheduleBtn">
-    <i class="material-icons left">save</i>
-    Save Schedule
+    <i class="material-icons left">save</i>Save Schedule
   </button>
 </div>
 
@@ -230,16 +259,6 @@ endblock %} {% block content %}
     >
       <input type="text" id="engagementFilter" class="autocomplete" />
       <label for="engagementFilter">Filter by Engagement</label>
-    </div>
-  </div>
-  <div class="col s6" style="margin-top: 1rem">
-    <div class="switch" style="display: inline-block; vertical-align: bottom">
-      <label>
-        Hide Inactive
-        <input type="checkbox" id="showInactiveEmployees" />
-        <span class="lever"></span>
-        Show Inactive
-      </label>
     </div>
   </div>
 </div>
@@ -2221,6 +2240,12 @@ endblock %} {% block content %}
     if (engagementFilterElement) {
       engagementFilterElement.addEventListener("input", filterSchedule);
     }
+    var dropdowns = document.querySelectorAll(".dropdown-trigger");
+    M.Dropdown.init(dropdowns, {
+      constrainWidth: false,
+      coverTrigger: false,
+      hover: true,
+    });
   });
 
   function refreshTimeline() {
