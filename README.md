@@ -1,6 +1,14 @@
-# Audit Roster
+![Banner](https://github.com/user-attachments/assets/de7183ef-9f77-4ac5-9f63-15ab48f86c9e)
 
 Audit Roster is a comprehensive staff scheduling and engagement management application designed for audit firms. It provides a user-friendly interface for managing employees, clients, engagements, assignments, time off, and generating insightful reports.
+
+## Disclaimer
+
+I am a hobbyist coder. I make no guarantees regarding the accuracy, functionality, reliability, or suitability of any code I share. Use this code at your own risk. I disclaim any responsibility or liability for any potential issues, damages, or losses that may arise from using or modifying this code.
+
+All data is stored locally, and should be just as secure as the network your computer is on, however in regards to highly sensitive data, use your own discression.
+
+By using this code, you acknowledge and agree that I am not liable for any consequences, direct or indirect, that may occur as a result.
 
 ## Features
 
@@ -18,15 +26,15 @@ Audit Roster is a comprehensive staff scheduling and engagement management appli
 
 ## Screenshots
 
-![Screenshot 1]()
+![Main View](https://github.com/user-attachments/assets/49b7eb41-f4f7-4331-b8cc-01007e5fefe5)
 _The main viewer/editor._
 
-![Screenshot 2]()
+![Engagements View](https://github.com/user-attachments/assets/2f4ff79d-66ee-4359-bd69-6f49684d9a29)
 _Added engagements and assignments view._
 
-![Screenshot 3]()
+![Reports View](https://github.com/user-attachments/assets/c36309f1-5253-415e-9680-98660e0fd8e0)
 _Generated reports._
 
 ## Installation
 
-Download the most recent installer exe from the [releases page](https://github.com/Matthew-95/audit-roster/releases) and follow the installation instructions.
+Download the most recent installer exe from the [releases page](https://github.com/Matthew-05/Audit-Roster/releases) and follow the installation instructions.
