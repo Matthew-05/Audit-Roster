@@ -29,4 +29,4 @@ _Generated reports._
 
 ## Installation
 
-Download the most recent installer exe from the [releases page](https://github.com/Matthew-95/audit-roster/releases) and follow the installation instructions.
+Download the most recent installer exe from the [releases page](https://github.com/Matthew-05/Audit-Roster/releases) and follow the installation instructions.
