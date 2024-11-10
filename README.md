@@ -2,6 +2,14 @@
 
 Audit Roster is a comprehensive staff scheduling and engagement management application designed for audit firms. It provides a user-friendly interface for managing employees, clients, engagements, assignments, time off, and generating insightful reports.
 
+## Disclaimer
+
+I am a hobbyist coder, and all code provided here is for informational and educational purposes only. I make no guarantees regarding the accuracy, functionality, reliability, or suitability of any code I share. Use this code at your own risk. I disclaim any responsibility or liability for any potential issues, damages, or losses that may arise from using or modifying this code.
+
+All data is stored locally, and should be just as secure as the network your computer is on, however in regards to highly sensitive data, use your own discression.
+
+By using this code, you acknowledge and agree that I am not liable for any consequences, direct or indirect, that may occur as a result.
+
 ## Features
 
 - **Staff View**: When finished editing the schedule, export the schedule as an HTML file for easy sharing.
