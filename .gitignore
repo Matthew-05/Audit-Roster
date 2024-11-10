@@ -163,3 +163,5 @@ cython_debug/
 #.idea/
 
 /app_utils/temp_update
+
+/public_page_assets

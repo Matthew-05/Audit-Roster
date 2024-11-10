@@ -25,6 +25,20 @@ def generate_changelog_html():
             </div>
         </div>
 
+         <div class="col s12">
+            <div class="card">
+                <div class="card-content">
+                    <span class="card-title">v2.1.2</span>
+                    <ul class="changelog-list">
+                        <li>Fixed:</li>
+                        <ul class="changelog-sublist">
+                            <li>Fixed the automatic updater.</li>
+                        </ul>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
         <div class="col s12">
             <div class="card">
                 <div class="card-content">

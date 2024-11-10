@@ -2,6 +2,7 @@ from flask import render_template
 from datetime import datetime
 import json
 import os
+import webview
 
 
 def save_schedule(employees, assignments, time_off, observations, version, save_directory):
@@ -518,9 +519,18 @@ document.addEventListener('DOMContentLoaded', function() {{
 
 
     full_path = os.path.join(save_directory, file_name) if save_directory else file_name
-    
-    with open(full_path, 'w', encoding='utf-8') as f:
-        f.write(html_content)
+    file_path = webview.windows[0].create_file_dialog(webview.SAVE_DIALOG, save_filename=file_name)
 
-    return {"success": True, "filename": full_path}
+    if file_path and len(file_path) > 0:
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+                print("File saved to:", file_path)
+            return {"success": True, "filename": os.path.basename(file_path)}
+        except Exception as e:
+            print("Error saving file.")
+            return {"success": False, "error": str(e)}
+    else:
+        print("File not saved.")
+        return {}
 

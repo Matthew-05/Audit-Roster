@@ -1481,7 +1481,12 @@ endblock %} {% block content %}
     pywebview.api
       .save_schedule()
       .then((response) => {
-        alert("Schedule saved successfully!");
+        if (response.success) {
+          alert("Schedule saved successfully!");
+        }
+        if (response.error) {
+          alert("Error: " + response.error);
+        }
       })
       .catch((error) => {
         console.error("Error saving schedule:", error);
