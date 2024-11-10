@@ -1350,13 +1350,19 @@ class Api:
             for engagement in engagements:
                 deadline_key = engagement.deadline.strftime('%Y-%m-%d')
                 heatmap_data[deadline_key]['count'] += 1
-                heatmap_data[deadline_key]['engagements'].append(engagement.engagement_title)
+                heatmap_data[deadline_key]['engagements'].append({
+                    'title': engagement.engagement_title,
+                    'fiscal_year': engagement.fiscal_year,
+                    'type': engagement.engagement_type
+                })
             
             return {
                 'dates': list(heatmap_data.keys()),
                 'counts': [data['count'] for data in heatmap_data.values()],
                 'engagements': [data['engagements'] for data in heatmap_data.values()]
             }
+
+
 
     def update_assignment_and_engagement(self, assignment_id, data):
         with self.app.app_context():

@@ -244,21 +244,19 @@ endblock %} {% block content %}
 </div>
 
 <div class="row">
-  <div class="col s6">
-    <div
-      class="input-field"
-      style="width: 40%; display: inline-block; margin-right: 10px"
-    >
+  <div class="col s6" style="display: flex; gap: 10px">
+    <div class="input-field" style="flex: 1; min-width: 0">
       <input type="text" id="employeeFilter" class="autocomplete" />
-      <label for="employeeFilter">Filter Staff</label>
+      <label for="employeeFilter" style="white-space: nowrap"
+        >Filter Staff</label
+      >
     </div>
 
-    <div
-      class="input-field"
-      style="width: 40%; display: inline-block; margin-right: 10px"
-    >
+    <div class="input-field" style="flex: 1; min-width: 0">
       <input type="text" id="engagementFilter" class="autocomplete" />
-      <label for="engagementFilter">Filter by Engagement</label>
+      <label for="engagementFilter" style="white-space: nowrap"
+        >Filter by Engagement</label
+      >
     </div>
   </div>
 </div>

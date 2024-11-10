@@ -141,8 +141,10 @@
         </button>
       </div>
       <div id="engagement-deadline-heatmap" class="col s12">
-        <div class="section"></div>
-        <div id="heatmap-container"></div>
+        <div
+          id="heatmap-container"
+          style="height: 100%; width: 95%; margin: 0 auto"
+        ></div>
       </div>
     </div>
   </div>
@@ -348,13 +350,34 @@
           right: "dayGridMonth,dayGridWeek",
         },
         eventContent: function (arg) {
-          return {
-            html: `<div class="fc-event-title" style="color: black; font-weight: bold;">${arg.event.title}</div>`,
-          };
+          const engagements = arg.event.extendedProps.engagements;
+          const maxDisplay = 2;
+          let content =
+            '<div style="padding: 2px; padding-top: 20px;font-size: 0.7em;">';
+
+          engagements.slice(0, maxDisplay).forEach((eng) => {
+            content += `<div style="color: rgba(0,0,0,0.87); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500;">${
+              eng.title
+            } (FY: ${eng.fiscal_year || "N/A"} - ${eng.type})</div>`;
+          });
+
+          if (engagements.length > maxDisplay) {
+            content += `<div style="color: rgba(0,0,0,0.87); font-style: italic; font-weight: 500;">(${
+              engagements.length - maxDisplay
+            } more)</div>`;
+          }
+
+          content += "</div>";
+          return { html: content };
         },
         eventDidMount: function (info) {
           tippy(info.el, {
-            content: info.event.extendedProps.engagements.join("<br>"),
+            content: info.event.extendedProps.engagements
+              .map(
+                (eng) =>
+                  `${eng.title} (FY: ${eng.fiscal_year || "N/A"} - ${eng.type})`
+              )
+              .join("<br>"),
             allowHTML: true,
             theme: "light-border",
           });
@@ -372,7 +395,7 @@
       .then((data) => {
         const container = document.getElementById("heatmap-container");
         container.innerHTML =
-          '<div id="calendar-heatmap" style="height: 300px;"></div>';
+          '<div id="calendar-heatmap" style="height: calc(100vh - 450px); max-height: 600px;"></div>';
 
         const events = data.dates.map((date, index) => ({
           title: `${data.counts[index]} deadlines`,
@@ -387,7 +410,6 @@
           },
         }));
 
-        // Initialize calendar but don't render yet
         initializeCalendar(events);
       });
   }
