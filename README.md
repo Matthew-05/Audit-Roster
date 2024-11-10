@@ -1,4 +1,4 @@
-# Audit Roster
+![Banner](https://github.com/user-attachments/assets/de7183ef-9f77-4ac5-9f63-15ab48f86c9e)
 
 Audit Roster is a comprehensive staff scheduling and engagement management application designed for audit firms. It provides a user-friendly interface for managing employees, clients, engagements, assignments, time off, and generating insightful reports.
 
