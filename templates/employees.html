@@ -70,8 +70,8 @@ Scheduler{% endblock %} {% block content %}
 
 <!-- Confirmation Modal -->
 <div id="confirm-modal" class="modal">
+  <div class="modal-header"><h4>Confirm Action</h4></div>
   <div class="modal-content">
-    <h4>Confirm Action</h4>
     <p id="confirm-message"></p>
   </div>
   <div class="modal-footer">
@@ -84,7 +84,7 @@ Scheduler{% endblock %} {% block content %}
   </div>
 </div>
 
-<div id="delete-employee-options-modal" class="modal">
+<div id="delete-employee-options-modal" class="draggable-modal">
   <div class="modal-content">
     <h4>Delete Employee Options</h4>
     <p>How would you like to handle this employee deletion?</p>
@@ -119,9 +119,9 @@ Scheduler{% endblock %} {% block content %}
 </div>
 
 <!-- Add Employee Modal -->
-<div id="add-employee-modal" class="modal">
+<div id="add-employee-modal" class="draggable-modal">
+  <div class="modal-header"><h4>New Employee</h4></div>
   <div class="modal-content">
-    <h4>Add Staff</h4>
     <form id="add-employee-form">
       <div class="input-field">
         <input id="first_name" type="text" required />
@@ -159,9 +159,9 @@ Scheduler{% endblock %} {% block content %}
 </div>
 
 <!-- Edit Employee Modal -->
-<div id="edit-employee-modal" class="modal">
+<div id="edit-employee-modal" class="draggable-modal">
+  <div class="modal-header"><h4>Edit Employee</h4></div>
   <div class="modal-content">
-    <h4>Edit Staff</h4>
     <form id="edit-employee-form">
       <input id="edit_id" type="hidden" />
       <div class="input-field">
@@ -200,9 +200,9 @@ Scheduler{% endblock %} {% block content %}
 </div>
 
 <!-- Add Partner Modal -->
-<div id="add-partner-modal" class="modal">
+<div id="add-partner-modal" class="draggable-modal">
+  <div class="modal-header"><h4>Add Partner</h4></div>
   <div class="modal-content">
-    <h4>Add Partner</h4>
     <form id="add-partner-form">
       <div class="input-field">
         <input id="partner_first_name" type="text" required />
@@ -232,9 +232,9 @@ Scheduler{% endblock %} {% block content %}
 </div>
 
 <!-- Edit Partner Modal -->
-<div id="edit-partner-modal" class="modal">
+<div id="edit-partner-modal" class="draggable-modal">
+  <div class="modal-header"><h4>New Partner</h4></div>
   <div class="modal-content">
-    <h4>Edit Partner</h4>
     <form id="edit-partner-form">
       <input id="edit_partner_id" type="hidden" />
       <div class="input-field">
@@ -309,6 +309,26 @@ Scheduler{% endblock %} {% block content %}
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    document
+      .querySelector('a[href="#add-employee-modal"]')
+      .addEventListener("click", (e) => {
+        e.preventDefault();
+        const modal = document.getElementById("add-employee-modal");
+        modal.style.display = "block";
+        centerModal(modal);
+        makeDraggable(modal);
+      });
+
+    document
+      .querySelector('a[href="#add-partner-modal"]')
+      .addEventListener("click", (e) => {
+        e.preventDefault();
+        const modal = document.getElementById("add-partner-modal");
+        modal.style.display = "block";
+        centerModal(modal);
+        makeDraggable(modal);
+      });
+
     var modals = document.querySelectorAll(".modal");
     M.Modal.init(modals);
 
@@ -395,7 +415,84 @@ Scheduler{% endblock %} {% block content %}
       loadEmployees();
       loadPartners();
     });
+    document
+      .getElementById("add-employee-modal")
+      .querySelector(".modal-close")
+      .addEventListener("click", () => {
+        closeModal("add-employee-modal");
+      });
+
+    document
+      .getElementById("edit-employee-modal")
+      .querySelector(".modal-close")
+      .addEventListener("click", () => {
+        closeModal("edit-employee-modal");
+      });
+
+    document
+      .getElementById("add-partner-modal")
+      .querySelector(".modal-close")
+      .addEventListener("click", () => {
+        closeModal("add-partner-modal");
+      });
+
+    document
+      .getElementById("edit-partner-modal")
+      .querySelector(".modal-close")
+      .addEventListener("click", () => {
+        closeModal("edit-partner-modal");
+      });
+
+    document
+      .getElementById("delete-employee-options-modal")
+      .querySelector(".modal-close")
+      .addEventListener("click", () => {
+        closeModal("delete-employee-options-modal");
+      });
+
+    document
+      .getElementById("delete-partner-options-modal")
+      .querySelector(".modal-close")
+      .addEventListener("click", () => {
+        closeModal("delete-partner-options-modal");
+      });
+
+    document
+      .getElementById("confirm-modal")
+      .querySelector(".modal-close")
+      .addEventListener("click", () => {
+        closeModal("confirm-modal");
+      });
   });
+
+  function makeDraggable(element) {
+    interact(element).draggable({
+      listeners: {
+        move(event) {
+          const target = event.target;
+          const x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx;
+          const y = (parseFloat(target.getAttribute("data-y")) || 0) + event.dy;
+
+          target.style.transform = `translate(${x}px, ${y}px)`;
+          target.setAttribute("data-x", x);
+          target.setAttribute("data-y", y);
+        },
+      },
+    });
+  }
+
+  function centerModal(modal) {
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const modalWidth = modal.offsetWidth;
+    const modalHeight = modal.offsetHeight;
+
+    const left = (windowWidth - modalWidth) / 2;
+    const top = (windowHeight - modalHeight) / 2;
+
+    modal.style.left = `${left}px`;
+    modal.style.top = `${top}px`;
+  }
 
   function loadEmployees() {
     window.pywebview.api.get_employees().then((data) => {
@@ -490,19 +587,18 @@ Scheduler{% endblock %} {% block content %}
   }
 
   function addEmployee() {
-    const hireDate = document.getElementById("hire_date").value;
     const data = {
       first_name: document.getElementById("first_name").value,
       last_name: document.getElementById("last_name").value,
-      hire_date: hireDate
-        ? new Date(hireDate).toISOString().split("T")[0]
+      hire_date: document.getElementById("hire_date").value
+        ? new Date(document.getElementById("hire_date").value)
+            .toISOString()
+            .split("T")[0]
         : null,
       active_status: document.getElementById("active_status").checked,
     };
     window.pywebview.api.add_employee(data).then((response) => {
-      M.Modal.getInstance(
-        document.getElementById("add-employee-modal")
-      ).close();
+      closeModal("add-employee-modal");
       document.getElementById("add-employee-form").reset();
       loadEmployees();
       if (response.success) {
@@ -515,6 +611,8 @@ Scheduler{% endblock %} {% block content %}
 
   function editEmployee(id) {
     window.pywebview.api.get_employee(id).then((data) => {
+      const modal = document.getElementById("edit-employee-modal");
+
       document.getElementById("edit_id").value = data.id;
       document.getElementById("edit_first_name").value = data.first_name;
       document.getElementById("edit_last_name").value = data.last_name;
@@ -533,10 +631,18 @@ Scheduler{% endblock %} {% block content %}
       document.getElementById("edit_active_status").checked =
         data.active_status;
       M.updateTextFields();
-      M.Modal.getInstance(
-        document.getElementById("edit-employee-modal")
-      ).open();
+      modal.style.display = "block";
+      centerModal(modal);
+      makeDraggable(modal);
     });
+  }
+
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.style.display = "none";
+    modal.style.transform = "none";
+    modal.removeAttribute("data-x");
+    modal.removeAttribute("data-y");
   }
 
   function updateEmployee() {
@@ -551,9 +657,7 @@ Scheduler{% endblock %} {% block content %}
       active_status: document.getElementById("edit_active_status").checked,
     };
     window.pywebview.api.update_employee(id, data).then((response) => {
-      M.Modal.getInstance(
-        document.getElementById("edit-employee-modal")
-      ).close();
+      closeModal("edit-employee-modal");
       loadEmployees();
       if (response.success) {
         M.toast({ html: "Employee updated successfully", classes: "green" });
@@ -565,8 +669,9 @@ Scheduler{% endblock %} {% block content %}
 
   function deleteEmployee(id) {
     const modal = document.getElementById("delete-employee-options-modal");
-    const modalInstance = M.Modal.init(modal);
-    modalInstance.open();
+    modal.style.display = "block";
+    centerModal(modal);
+    makeDraggable(modal);
 
     document.getElementById("confirm-delete-employee").onclick = function () {
       const selectedOption = document.querySelector(
@@ -576,7 +681,7 @@ Scheduler{% endblock %} {% block content %}
       window.pywebview.api
         .delete_employee(id, selectedOption)
         .then((response) => {
-          modalInstance.close();
+          closeModal("delete-employee-options-modal");
           if (response.success) {
             loadEmployees();
             M.toast({
@@ -597,7 +702,7 @@ Scheduler{% endblock %} {% block content %}
       initials: document.getElementById("partner_initials").value,
     };
     window.pywebview.api.add_partner(data).then((response) => {
-      M.Modal.getInstance(document.getElementById("add-partner-modal")).close();
+      closeModal("add-partner-modal");
       document.getElementById("add-partner-form").reset();
       loadPartners();
       if (response.success) {
@@ -610,13 +715,17 @@ Scheduler{% endblock %} {% block content %}
 
   function editPartner(id) {
     window.pywebview.api.get_partner(id).then((data) => {
+      const modal = document.getElementById("edit-partner-modal");
       document.getElementById("edit_partner_id").value = data.id;
       document.getElementById("edit_partner_first_name").value =
         data.first_name;
       document.getElementById("edit_partner_last_name").value = data.last_name;
       document.getElementById("edit_partner_initials").value = data.initials;
+
       M.updateTextFields();
-      M.Modal.getInstance(document.getElementById("edit-partner-modal")).open();
+      modal.style.display = "block";
+      centerModal(modal);
+      makeDraggable(modal);
     });
   }
 
@@ -628,9 +737,7 @@ Scheduler{% endblock %} {% block content %}
       initials: document.getElementById("edit_partner_initials").value,
     };
     window.pywebview.api.update_partner(id, data).then((response) => {
-      M.Modal.getInstance(
-        document.getElementById("edit-partner-modal")
-      ).close();
+      closeModal("edit-partner-modal");
       loadPartners();
       if (response.success) {
         M.toast({ html: "Partner updated successfully", classes: "green" });
@@ -642,8 +749,9 @@ Scheduler{% endblock %} {% block content %}
 
   function deletePartner(id) {
     const modal = document.getElementById("delete-partner-options-modal");
-    const modalInstance = M.Modal.init(modal);
-    modalInstance.open();
+    modal.style.display = "block";
+    centerModal(modal);
+    makeDraggable(modal);
 
     document.getElementById("confirm-delete-partner").onclick = function () {
       const selectedOption = document.querySelector(
@@ -653,7 +761,7 @@ Scheduler{% endblock %} {% block content %}
       window.pywebview.api
         .delete_partner(id, selectedOption)
         .then((response) => {
-          modalInstance.close();
+          closeModal("delete-partner-options-modal");
           if (response.success) {
             loadPartners();
             M.toast({ html: "Partner handled successfully", classes: "green" });
@@ -675,7 +783,7 @@ Scheduler{% endblock %} {% block content %}
     modalInstance.open();
 
     confirmAction.onclick = () => {
-      modalInstance.close();
+      closeModal("confirm-modal");
       onConfirm();
     };
   }

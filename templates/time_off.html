@@ -17,7 +17,6 @@ endblock %} {% block content %}
   }
 
   .dataTable-pagination a:hover {
-
     background-color: #e0f2f1;
   }
 
@@ -53,7 +52,10 @@ endblock %} {% block content %}
 <h2 class="left-align">Time Off</h2>
 
 <div>
-  <a class="waves-effect waves-light btn modal-trigger" href="#add-time-off-modal">
+  <a
+    class="waves-effect waves-light btn modal-trigger"
+    onclick="openAddTimeOffModal()"
+  >
     <i class="material-icons left">add</i>New Time Off
   </a>
   <a class="waves-effect waves-light btn" onclick="exportCPETimeOffs()">
@@ -75,9 +77,9 @@ endblock %} {% block content %}
 </table>
 
 <!-- Add Time Off Modal -->
-<div id="add-time-off-modal" class="modal">
+<div id="add-time-off-modal" class="draggable-modal">
+  <div class="modal-header">Add Time Off</div>
   <div class="modal-content">
-    <h4>Add Time Off</h4>
     <form id="add-time-off-form">
       <div class="input-field">
         <select id="employee_id" required>
@@ -96,7 +98,10 @@ endblock %} {% block content %}
     </form>
   </div>
   <div class="modal-footer">
-    <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+    <a
+      href="#!"
+      class="waves-effect waves-green btn-flat"
+      onclick="closeModal('add-time-off-modal')"
       >Cancel</a
     >
     <a
@@ -109,9 +114,9 @@ endblock %} {% block content %}
 </div>
 
 <!-- Edit Time Off Modal -->
-<div id="edit-time-off-modal" class="modal">
+<div id="edit-time-off-modal" class="draggable-modal">
+  <div class="modal-header">Edit Time Off</div>
   <div class="modal-content">
-    <h4>Edit Time Off</h4>
     <form id="edit-time-off-form">
       <input type="hidden" id="edit_id" />
       <div class="input-field">
@@ -131,7 +136,10 @@ endblock %} {% block content %}
     </form>
   </div>
   <div class="modal-footer">
-    <a href="#!" class="modal-close waves-effect waves-green btn-flat"
+    <a
+      href="#!"
+      class="waves-effect waves-green btn-flat"
+      onClick="closeModal('edit-time-off-modal')"
       >Cancel</a
     >
     <a
@@ -144,7 +152,7 @@ endblock %} {% block content %}
 </div>
 
 <!-- Confirmation Modal -->
-<div id="confirm-modal" class="modal">
+<div id="confirm-modal" class="draggable-modal">
   <div class="modal-content">
     <h4>Confirm Action</h4>
     <p id="confirm-message"></p>
@@ -181,14 +189,15 @@ endblock %} {% block content %}
     if (!pywebviewReady) return;
     window.pywebview.api.export_cpe_time_offs().then((response) => {
       if (response.success) {
-        M.toast({ html: "CPE time offs exported successfully", classes: "green" });
+        M.toast({
+          html: "CPE time offs exported successfully",
+          classes: "green",
+        });
       } else {
         M.toast({ html: "Failed to export CPE time offs", classes: "red" });
       }
     });
   }
-  
-  
 
   document.addEventListener("DOMContentLoaded", function () {
     var modals = document.querySelectorAll(".modal");
@@ -285,30 +294,25 @@ endblock %} {% block content %}
     if (!pywebviewReady) return;
     window.pywebview.api.get_all_time_off().then((data) => {
       const rows = data.map((timeOff) => {
-        const startDate = new Date(timeOff.start_date);
-        const endDate = new Date(timeOff.end_date);
-        const formattedStartDate = `${(startDate.getMonth() + 1)
-          .toString()
-          .padStart(2, "0")}/${startDate
-          .getDate()
-          .toString()
-          .padStart(2, "0")}/${startDate.getFullYear()}`;
-        const formattedEndDate = `${(endDate.getMonth() + 1)
-          .toString()
-          .padStart(2, "0")}/${endDate
-          .getDate()
-          .toString()
-          .padStart(2, "0")}/${endDate.getFullYear()}`;
+        // Split the ISO date string and take just the date portion
+        const startDate = timeOff.start_date.split("T")[0].split("-");
+        const endDate = timeOff.end_date.split("T")[0].split("-");
+
+        // Format as MM/DD/YYYY directly from the date components
+        const formattedStartDate = `${startDate[1]}/${startDate[2]}/${startDate[0]}`;
+        const formattedEndDate = `${endDate[1]}/${endDate[2]}/${endDate[0]}`;
+
         return [
           timeOff.employee_name,
           formattedStartDate,
           formattedEndDate,
           timeOff.description,
           `<a href="#!" onclick="editTimeOff(${timeOff.id})"><i class="material-icons">edit</i></a>
-         <a href="#!" onclick="deleteTimeOff(${timeOff.id})"><i class="material-icons">delete</i></a>`,
+                <a href="#!" onclick="deleteTimeOff(${timeOff.id})"><i class="material-icons">delete</i></a>`,
         ];
       });
 
+      // Rest of the table initialization code remains the same
       timeOffTable.destroy();
       timeOffTable = new simpleDatatables.DataTable("#time-off-table", {
         data: {
@@ -321,6 +325,7 @@ endblock %} {% block content %}
           ],
           data: rows,
         },
+
         perPage: 10,
         perPageSelect: [5, 10, 15, 20, 25],
         columns: [
@@ -357,6 +362,13 @@ endblock %} {% block content %}
     });
   }
 
+  function openAddTimeOffModal() {
+    const modal = document.getElementById("add-time-off-modal");
+    modal.style.display = "block";
+    centerModal(modal);
+    makeDraggable(modal);
+  }
+
   function addTimeOff() {
     if (!pywebviewReady) return;
     const dateRange = document.getElementById("date_range").value.split(" - ");
@@ -368,9 +380,7 @@ endblock %} {% block content %}
     };
     window.pywebview.api.add_time_off(data).then((response) => {
       if (response.id) {
-        M.Modal.getInstance(
-          document.getElementById("add-time-off-modal")
-        ).close();
+        closeModal("add-time-off-modal");
         document.getElementById("add-time-off-form").reset();
         loadTimeOff();
         M.toast({ html: "Time off added successfully", classes: "green" });
@@ -385,15 +395,24 @@ endblock %} {% block content %}
     window.pywebview.api.get_time_off_for_edit(id).then((data) => {
       document.getElementById("edit_id").value = data.id;
       document.getElementById("edit_employee_id").value = data.employee_id;
-      document.getElementById("edit_date_range").value = `${formatDate(
-        new Date(data.start_date)
-      )} - ${formatDate(new Date(data.end_date))}`;
+
+      // Split ISO dates and format directly
+      const startDate = data.start_date.split("T")[0].split("-");
+      const endDate = data.end_date.split("T")[0].split("-");
+      const formattedStartDate = `${startDate[1]}/${startDate[2]}/${startDate[0]}`;
+      const formattedEndDate = `${endDate[1]}/${endDate[2]}/${endDate[0]}`;
+
+      document.getElementById(
+        "edit_date_range"
+      ).value = `${formattedStartDate} - ${formattedEndDate}`;
       document.getElementById("edit_description").value = data.description;
+
       M.updateTextFields();
       M.FormSelect.init(document.getElementById("edit_employee_id"));
-      M.Modal.getInstance(
-        document.getElementById("edit-time-off-modal")
-      ).open();
+      const modal = document.getElementById("edit-time-off-modal");
+      modal.style.display = "block";
+      centerModal(modal);
+      makeDraggable(modal);
     });
   }
 
@@ -403,17 +422,25 @@ endblock %} {% block content %}
     const dateRange = document
       .getElementById("edit_date_range")
       .value.split(" - ");
+
+    // Parse dates and ensure consistent formatting
+    const startDate = new Date(dateRange[0]);
+    const endDate = new Date(dateRange[1]);
+
     const data = {
       employee_id: document.getElementById("edit_employee_id").value,
-      start_date: dateRange[0],
-      end_date: dateRange[1],
+      start_date: `${
+        startDate.getMonth() + 1
+      }/${startDate.getDate()}/${startDate.getFullYear()}`,
+      end_date: `${
+        endDate.getMonth() + 1
+      }/${endDate.getDate()}/${endDate.getFullYear()}`,
       description: document.getElementById("edit_description").value,
     };
+
     window.pywebview.api.update_time_off(id, data).then((response) => {
-      if (response.id) {
-        M.Modal.getInstance(
-          document.getElementById("edit-time-off-modal")
-        ).close();
+      if ((response.success = true)) {
+        closeModal("edit-time-off-modal");
         loadTimeOff();
         M.toast({ html: "Time off updated successfully", classes: "green" });
       } else {
@@ -448,13 +475,53 @@ endblock %} {% block content %}
 
     confirmMessage.textContent = message;
 
-    const modalInstance = M.Modal.getInstance(modal);
+    let modalInstance = M.Modal.getInstance(modal);
+    if (!modalInstance) {
+      modalInstance = M.Modal.init(modal, {});
+    }
     modalInstance.open();
 
     confirmAction.onclick = () => {
       modalInstance.close();
       onConfirm();
     };
+  }
+
+  function makeDraggable(element) {
+    interact(element).draggable({
+      listeners: {
+        move(event) {
+          const target = event.target;
+          const x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx;
+          const y = (parseFloat(target.getAttribute("data-y")) || 0) + event.dy;
+
+          target.style.transform = `translate(${x}px, ${y}px)`;
+          target.setAttribute("data-x", x);
+          target.setAttribute("data-y", y);
+        },
+      },
+    });
+  }
+
+  function centerModal(modal) {
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const modalWidth = modal.offsetWidth;
+    const modalHeight = modal.offsetHeight;
+
+    const left = (windowWidth - modalWidth) / 2;
+    const top = (windowHeight - modalHeight) / 2;
+
+    modal.style.left = `${left}px`;
+    modal.style.top = `${top}px`;
+  }
+
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.style.display = "none";
+    modal.style.transform = "none";
+    modal.removeAttribute("data-x");
+    modal.removeAttribute("data-y");
   }
 </script>
 {% endblock %}

@@ -763,7 +763,7 @@ class Api:
             return [{
                 'id': a.id,
                 'employee_id': a.employee_id,
-                'employee_name': f"{a.employee.first_name} {a.employee.last_name}",  # Add this line
+                'employee_name': f"{a.employee.first_name} {a.employee.last_name}",
                 'engagement_id': a.engagement_id,
                 'engagement_title': a.engagement.engagement_title,
                 'engagement_type': a.engagement.engagement_type,
@@ -773,6 +773,8 @@ class Api:
                 'deadline': a.engagement.deadline.strftime('%m/%d/%Y') if a.engagement.deadline else None,
                 'fiscal_year': a.engagement.fiscal_year
             } for a in assignments]
+
+
         
     def save_schedule(self):
         with self.app.app_context():
@@ -780,9 +782,21 @@ class Api:
                 employees = self.get_employees()
                 assignments = self.get_assignments()
                 time_off = self.get_time_off()
-                observations = self.get_observations()  # Add this line
+                observations = self.get_observations()
                 settings = get_settings()
-                
+
+                for assignment in assignments:
+                    employee_id = assignment['employee_id']
+                    engagement_title = assignment['engagement_title']
+                    if not any(emp['id'] == employee_id for emp in employees):
+                        print(f"Invalid employee reference found in assignment:")
+                        print(f"Assignment ID: {assignment['id']}")
+                        print(f"Employee ID: {employee_id}")
+                        print(f"Engagement: {engagement_title}")
+                        print(f"Start Date: {assignment['start_date']}")
+                        print(f"End Date: {assignment['end_date']}")
+                        raise ValueError(f"Employee ID {employee_id} not found for assignment in engagement '{engagement_title}'")
+                    
                 save_directory = settings['General'].get('SaveDirectory', '')
                 export_inactive_employees = settings['Schedule'].getboolean('ExportInactiveEmployees', False)
 
@@ -797,9 +811,11 @@ class Api:
                 
                 return save_schedule(employees, assignments, time_off, observations, VERSION, save_directory)
             except Exception as e:
-                print(f"Error saving schedule: {e}")
+                print(f"Detailed Error in save_schedule:")
+                print(f"Error Type: {type(e).__name__}")
+                print(f"Error Message: {str(e)}")
+                print(f"Full Error Details: {traceback.format_exc()}")
                 return False
-
 
 
     def update_assignment(self, id, start_date, end_date, new_employee_id):
@@ -879,11 +895,16 @@ class Api:
             return [{
                 'id': time_off.id,
                 'employee_id': time_off.employee_id,
-                'employee_name': f"{time_off.employee.first_name} {time_off.employee.last_name}",
+                'employee_name': f"{time_off.employee.first_name} {time_off.employee.last_name}" if time_off.employee else "Unknown Employee",
                 'start_date': time_off.start_date.isoformat(),
                 'end_date': time_off.end_date.isoformat(),
                 'description': time_off.description
             } for time_off in time_off_list]
+        
+
+
+
+
         
     def get_time_off_for_edit(self, id):
         with self.app.app_context():
@@ -901,10 +922,15 @@ class Api:
     def update_time_off(self, id, data):
         with self.app.app_context():
             try:
+                print(f"Updating time off with ID: {id}")
+                print(f"Data: {data}")
                 time_off = TimeOff.query.get_or_404(id)
-                time_off.start_date = datetime.strptime(data['start_date'], '%Y-%m-%d').date()
-                time_off.end_date = datetime.strptime(data['end_date'], '%Y-%m-%d').date()
+                # Convert from MM/DD/YYYY to YYYY-MM-DD format
+                time_off.start_date = datetime.strptime(data['start_date'], '%m/%d/%Y').date()
+                time_off.end_date = datetime.strptime(data['end_date'], '%m/%d/%Y').date()
+                time_off.description = data['description']
                 db.session.commit()
+                print(f"Time off updated successfully: {time_off.description}")
                 return {
                     'success': True,
                     'id': time_off.id,
@@ -917,6 +943,8 @@ class Api:
             except Exception as e:
                 db.session.rollback()
                 return {'success': False, 'error': str(e)}
+
+
     
     def check_engagement_assignments(self, engagement_id):
         with self.app.app_context():

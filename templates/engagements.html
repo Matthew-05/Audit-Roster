@@ -138,9 +138,9 @@ endblock %} {% block content %}
 </div>
 
 <!-- Assignment Modal -->
-<div id="assignment-modal" class="modal">
+<div id="assignment-modal" class="draggable-modal">
+  <div class="modal-header"><h4>Add Assignment</h4></div>
   <div class="modal-content">
-    <h4 id="assignment-modal-title">Add Assignment</h4>
     <form id="assignment-form">
       <input type="hidden" id="engagement_id" />
       <div id="employee-list">
@@ -212,9 +212,9 @@ endblock %} {% block content %}
   </div>
 </div>
 <!-- Edit Assignment Modal -->
-<div id="edit-assignment-modal" class="modal">
+<div id="edit-assignment-modal" class="draggable-modal">
+  <div class="modal-header"><h4>Edit Assignment</h4></div>
   <div class="modal-content">
-    <h4>Edit Assignment</h4>
     <form id="edit-assignment-form">
       <input type="hidden" id="edit_assignment_id" />
       <input type="hidden" id="edit_engagement_id" />
@@ -243,9 +243,9 @@ endblock %} {% block content %}
   </div>
 </div>
 <!-- Edit Engagement Modal -->
-<div id="edit-engagement-modal" class="modal">
+<div id="edit-engagement-modal" class="draggable-modal">
+  <div class="modal-header"><h4>Edit Engagement</h4></div>
   <div class="modal-content">
-    <h4>Edit Engagement</h4>
     <form id="edit-engagement-form">
       <input type="hidden" id="edit_id" />
       <div class="input-field">
@@ -285,9 +285,9 @@ endblock %} {% block content %}
   </div>
 </div>
 <!-- Add Engagement Modal -->
-<div id="add-engagement-modal" class="modal">
+<div id="add-engagement-modal" class="draggable-modal">
+  <div class="modal-header"><h4>Add Engagement</h4></div>
   <div class="modal-content">
-    <h4>Add Engagement</h4>
     <form id="add-engagement-form">
       <div class="input-field">
         <input id="title" type="text" required />
@@ -342,6 +342,42 @@ endblock %} {% block content %}
     } else {
       setTimeout(() => waitForPywebview(callback), 100);
     }
+  }
+  function makeDraggable(element) {
+    interact(element).draggable({
+      listeners: {
+        move(event) {
+          const target = event.target;
+          const x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx;
+          const y = (parseFloat(target.getAttribute("data-y")) || 0) + event.dy;
+
+          target.style.transform = `translate(${x}px, ${y}px)`;
+          target.setAttribute("data-x", x);
+          target.setAttribute("data-y", y);
+        },
+      },
+    });
+  }
+
+  function centerModal(modal) {
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const modalWidth = modal.offsetWidth;
+    const modalHeight = modal.offsetHeight;
+
+    const left = (windowWidth - modalWidth) / 2;
+    const top = (windowHeight - modalHeight) / 2;
+
+    modal.style.left = `${left}px`;
+    modal.style.top = `${top}px`;
+  }
+
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.style.display = "none";
+    modal.style.transform = "none";
+    modal.removeAttribute("data-x");
+    modal.removeAttribute("data-y");
   }
 
   document.addEventListener("DOMContentLoaded", function () {
@@ -474,6 +510,30 @@ endblock %} {% block content %}
       loadEngagements();
       loadPartners();
     });
+
+    document
+      .querySelector('a[href="#add-engagement-modal"]')
+      .addEventListener("click", (e) => {
+        e.preventDefault();
+        const modal = document.getElementById("add-engagement-modal");
+        modal.style.display = "block";
+        centerModal(modal);
+        makeDraggable(modal);
+      });
+
+    const modalIDsToOpen = [
+      "add-engagement-modal",
+      "edit-engagement-modal",
+      "assignment-modal",
+      "edit-assignment-modal",
+    ];
+
+    modalIDsToOpen.forEach((modalId) => {
+      document
+        .getElementById(modalId)
+        .querySelector(".modal-close")
+        .addEventListener("click", () => closeModal(modalId));
+    });
   });
 
   function formatDate(date) {
@@ -544,9 +604,7 @@ endblock %} {% block content %}
     };
 
     window.pywebview.api.add_engagement(data).then((response) => {
-      M.Modal.getInstance(
-        document.getElementById("add-engagement-modal")
-      ).close();
+      closeModal("add-engagement-modal");
       document.getElementById("add-engagement-form").reset();
       loadEngagements();
       // Add success toast message
@@ -560,6 +618,12 @@ endblock %} {% block content %}
 
   function editEngagement(id) {
     if (!pywebviewReady) return;
+
+    const deadlineInput = document.getElementById("edit_deadline");
+    if (deadlineInput._litepicker) {
+      deadlineInput._litepicker.destroy();
+    }
+
     loadPartners().then(() => {
       window.pywebview.api.get_engagement(id).then((data) => {
         document.getElementById("edit_id").value = data.id;
@@ -569,7 +633,6 @@ endblock %} {% block content %}
         document.getElementById("edit_partner_id").value =
           data.partner_id || "";
 
-        // Fix deadline date display by adding timezone offset
         let deadlineDate = null;
         if (data.deadline) {
           deadlineDate = new Date(data.deadline);
@@ -587,29 +650,15 @@ endblock %} {% block content %}
         }
 
         document.getElementById("edit_reporting_period").value =
-          data.fiscal_year || "";
+          data.reporting_period || "";
 
         M.updateTextFields();
         M.FormSelect.init(document.getElementById("edit_partner_id"));
 
-        // Reinitialize datepicker
-        new Litepicker({
-          firstDay: 0,
-          element: document.getElementById("edit_deadline"),
-          singleMode: true,
-          format: "MM/DD/YYYY",
-          setup: (picker) => {
-            picker.on("selected", (date) => {
-              input.value = date.format("MM/DD/YYYY");
-              input.classList.add("active");
-              M.updateTextFields();
-            });
-          },
-        });
-
-        M.Modal.getInstance(
-          document.getElementById("edit-engagement-modal")
-        ).open();
+        const modal = document.getElementById("edit-engagement-modal");
+        modal.style.display = "block";
+        centerModal(modal);
+        makeDraggable(modal);
       });
     });
   }
@@ -626,9 +675,7 @@ endblock %} {% block content %}
     };
     console.log(data);
     window.pywebview.api.update_engagement(id, data).then((response) => {
-      M.Modal.getInstance(
-        document.getElementById("edit-engagement-modal")
-      ).close();
+      closeModal("edit-engagement-modal");
       loadEngagements();
       if (response.success) {
         M.toast({
@@ -674,7 +721,7 @@ endblock %} {% block content %}
     };
 
     window.pywebview.api.save_assignment(data).then((response) => {
-      M.Modal.getInstance(document.getElementById("assignment-modal")).close();
+      closeModal("assignment-modal");
       loadEngagements();
       setTimeout(() => openAssignments(engagementId), 100);
     });
@@ -823,6 +870,11 @@ endblock %} {% block content %}
   }
 
   function addAssignment(engagementId) {
+    const dateRangeInput = document.getElementById("date_range");
+    if (dateRangeInput._litepicker) {
+      dateRangeInput._litepicker.destroy();
+    }
+
     document.getElementById("assignment-modal-title").textContent =
       "Add Assignments";
     document.getElementById("engagement_id").value = engagementId;
@@ -855,15 +907,18 @@ endblock %} {% block content %}
     window.pywebview.api
       .save_multiple_assignments(assignments)
       .then((response) => {
-        let modal = document.getElementById("assignment-modal");
-        let instance = M.Modal.getInstance(modal);
-        instance.close();
+        closeModal("assignment-modal");
         loadEngagements();
       });
   }
 
   function editAssignment(assignmentId) {
     if (!pywebviewReady) return;
+    const editDateRangeInput = document.getElementById("edit_date_range");
+    if (editDateRangeInput._litepicker) {
+      editDateRangeInput._litepicker.destroy();
+    }
+
     window.pywebview.api.get_assignment(assignmentId).then((data) => {
       document.getElementById("edit_assignment_id").value = data.id;
       document.getElementById("edit_engagement_id").value = data.engagement_id;
@@ -874,9 +929,11 @@ endblock %} {% block content %}
       )} - ${formatDate(endDate)}`;
 
       loadEmployeesForEdit(data.employee_id).then(() => {
-        let modal = document.getElementById("edit-assignment-modal");
-        let instance = M.Modal.getInstance(modal);
-        instance.open();
+        const modal = document.getElementById("edit-assignment-modal");
+        modal.style.display = "block";
+        centerModal(modal);
+        makeDraggable(modal);
+        M.updateTextFields();
       });
     });
   }
@@ -910,9 +967,7 @@ endblock %} {% block content %}
     };
 
     window.pywebview.api.save_assignment(data).then((response) => {
-      let modal = document.getElementById("edit-assignment-modal");
-      let instance = M.Modal.getInstance(modal);
-      instance.close();
+      closeModal("edit-assignment-modal");
       loadEngagements();
       setTimeout(() => openAssignments(engagementId), 100);
     });
@@ -932,9 +987,7 @@ endblock %} {% block content %}
     };
 
     window.pywebview.api.save_assignment(data).then((response) => {
-      let modal = document.getElementById("assignment-modal");
-      let instance = M.Modal.getInstance(modal);
-      instance.close();
+      closeModal("assignment-modal");
       loadEngagements(); // This will refresh the DataTable
     });
   }
@@ -1031,9 +1084,10 @@ endblock %} {% block content %}
 
     // Initialize main rollforward modal
     let instance = M.Modal.getInstance(modal);
-    if (!instance) {
-      instance.destroy();
-    }
+    // if (instance) {
+    //  console.log("Modal instance already exists, destroying it...");
+    //   instance.destroy();
+    //}
     instance = M.Modal.init(modal, {
       dismissible: false,
       opacity: 0.5,
@@ -1078,9 +1132,10 @@ endblock %} {% block content %}
   function showStep(step) {
     const modal = document.getElementById("rollforward-modal");
     const content = modal.querySelector(".modal-content");
-    content.style.height = "calc(90vh - 200px)"; // Account for header and footer
+    content.style.height = "calc(90vh - 240px)"; // Account for header and footer
     content.style.overflowY = "auto";
-    content.style.padding = "20px";
+    content.style.padding = "20px 20px 0 20px"; // Remove bottom padding
+
     if (step === 1) {
       content.innerHTML = `
           <h4>Step 1: Select Engagements</h4>

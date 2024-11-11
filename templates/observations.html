@@ -25,18 +25,11 @@
     overflow: visible !important;
   }
 
-  .select-dropdown {
-    position: absolute !important;
-    z-index: 9999 !important;
-  }
   .modal .modal-content {
-    padding-bottom: 85px;
-  }
-
-  .modal-footer {
-    position: absolute;
-    bottom: 0;
-    width: 100%;
+    /* Remove or adjust the fixed padding-bottom */
+    padding-bottom: 0;
+    /* Add overflow handling */
+    overflow-y: auto;
   }
 </style>
 <h2>Observations</h2>
@@ -79,9 +72,9 @@
 </table>
 
 <!-- Add/Edit Observation Modal -->
-<div id="observation-modal" class="modal">
+<div id="observation-modal" class="draggable-modal">
+  <div class="modal-header" id="observation-modal-header">Add Observation</div>
   <div class="modal-content">
-    <h4 id="modal-title">Add Observation</h4>
     <form id="observation-form">
       <input type="hidden" id="observation-id" />
       <div class="input-field">
@@ -126,7 +119,10 @@
     </form>
   </div>
   <div class="modal-footer">
-    <a href="#!" class="modal-close waves-effect waves-light btn-flat"
+    <a
+      href="#!"
+      class="modal-close waves-effect waves-light btn-flat"
+      onclick="closeModal('observation-modal')"
       >Cancel</a
     >
     <a
@@ -433,7 +429,8 @@
   }
 
   function openAddObservationModal() {
-    document.getElementById("modal-title").textContent = "Add Observation";
+    document.getElementById("observation-modal-header").textContent =
+      "Add Observation";
     document.getElementById("observation-form").reset();
     document.getElementById("observation-id").value = "";
     document.getElementById("selected_engagement_id").value = "";
@@ -449,11 +446,15 @@
     initializeAutocomplete();
     M.updateTextFields();
     M.FormSelect.init(document.querySelectorAll("select"));
-    M.Modal.getInstance(document.getElementById("observation-modal")).open();
+    const modal = document.getElementById("observation-modal");
+    modal.style.display = "block";
+    centerModal(modal);
+    makeDraggable(modal);
   }
 
   function editObservation(id) {
-    document.getElementById("modal-title").textContent = "Edit Observation";
+    document.getElementById("observation-modal-header").textContent =
+      "Edit Observation";
     loadAllObservations();
     window.pywebview.api.get_observation(id).then((observation) => {
       document.getElementById("observation-id").value = observation.id;
@@ -494,16 +495,15 @@
       if (observation.scheduled_observation_date) {
         const date = new Date(observation.scheduled_observation_date);
         date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
-        document.getElementById("scheduled-date").value = date.toLocaleDateString("en-US", {
+        document.getElementById("scheduled-date").value =
+          date.toLocaleDateString("en-US", {
             month: "2-digit",
             day: "2-digit",
-            year: "numeric"
-        });
-    } else {
+            year: "numeric",
+          });
+      } else {
         document.getElementById("scheduled-date").value = "";
-    }
-    
-    
+      }
 
       // Wait for loadAllObservations to complete before setting the value
       setTimeout(() => {
@@ -517,8 +517,48 @@
 
       M.updateTextFields();
       M.FormSelect.init(document.querySelectorAll("select"));
-      M.Modal.getInstance(document.getElementById("observation-modal")).open();
+      const modal = document.getElementById("observation-modal");
+      modal.style.display = "block";
+      centerModal(modal);
+      makeDraggable(modal);
     });
+  }
+
+  function makeDraggable(element) {
+    interact(element).draggable({
+      listeners: {
+        move(event) {
+          const target = event.target;
+          const x = (parseFloat(target.getAttribute("data-x")) || 0) + event.dx;
+          const y = (parseFloat(target.getAttribute("data-y")) || 0) + event.dy;
+
+          target.style.transform = `translate(${x}px, ${y}px)`;
+          target.setAttribute("data-x", x);
+          target.setAttribute("data-y", y);
+        },
+      },
+    });
+  }
+
+  function centerModal(modal) {
+    const windowWidth = window.innerWidth;
+    const windowHeight = window.innerHeight;
+    const modalWidth = modal.offsetWidth;
+    const modalHeight = modal.offsetHeight;
+
+    const left = (windowWidth - modalWidth) / 2;
+    const top = (windowHeight - modalHeight) / 2;
+
+    modal.style.left = `${left}px`;
+    modal.style.top = `${top}px`;
+  }
+
+  function closeModal(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.style.display = "none";
+    modal.style.transform = "none";
+    modal.removeAttribute("data-x");
+    modal.removeAttribute("data-y");
   }
 
   function saveObservation() {
@@ -571,17 +611,13 @@
 
     if (id) {
       window.pywebview.api.update_observation(id, data).then(() => {
-        M.Modal.getInstance(
-          document.getElementById("observation-modal")
-        ).close();
+        closeModal("observation-modal");
         loadObservations();
         M.toast({ html: "Observation updated successfully", classes: "green" });
       });
     } else {
       window.pywebview.api.add_observation(data).then(() => {
-        M.Modal.getInstance(
-          document.getElementById("observation-modal")
-        ).close();
+        closeModal("observation-modal");
         loadObservations();
         M.toast({ html: "Observation added successfully", classes: "green" });
       });
